@@ -25,7 +25,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields=['title']
     inlines=[GalleryInline,ColorInline,SizeInline,SpecificationInline]
 class CartOrderAdmin(admin.ModelAdmin):
-    list_display=['oid','payment_status','total']
+    list_display=['oid','buyer','payment_status','total']
 
 class ReviewAdmin(admin.ModelAdmin):
     list_display=['product','user']
@@ -40,3 +40,4 @@ admin.site.register(Review,ReviewAdmin)
 admin.site.register(Tax)
 admin.site.register(Coupon)
 admin.site.register(Notification)
+admin.site.register(Wishlist)

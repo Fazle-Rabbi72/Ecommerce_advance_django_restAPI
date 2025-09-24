@@ -7,7 +7,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated,AllowAny
 
-from userauths.serializer import RegisterSerializer,MyTokenObtainPairSerializer,UserSerializer
+from userauths.serializer import RegisterSerializer,MyTokenObtainPairSerializer,UserSerializer,ProfileSerializer
 
 import shortuuid
 
@@ -63,3 +63,15 @@ class PasswordChangeView(generics.CreateAPIView):
             return Response({"massage":"Password changed Successfully"},status=status.HTTP_201_CREATED)
         else:
             return Response({"massage":"User Does not exist"},status=status.HTTP_404_NOT_FOUND)
+
+class ProfileView(generics.RetrieveAPIView):
+    serializer_class=ProfileSerializer
+    permission_classes=[AllowAny]
+    
+    def get_object(self):
+        user_id=self.kwargs['user_id']
+        
+        user=User.objects.get(id=user_id)
+        profile=Profile.objects.get(user=user)
+        return profile
+        

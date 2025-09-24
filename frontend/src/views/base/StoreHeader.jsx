@@ -135,14 +135,14 @@ const StoreHeader = () => {
                   </a>
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li>
-                      <a className="dropdown-item" href="#">
+                      <a className="dropdown-item" href="customer/account/">
                         My Account
                       </a>
                     </li>
                     <li>
-                      <a className="dropdown-item" href="#">
+                      <Link to='/customer/orders/' className="dropdown-item" href="#">
                         Orders
-                      </a>
+                      </Link>
                     </li>
                     <li>
                       <hr className="dropdown-divider" />
