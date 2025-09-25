@@ -31,7 +31,7 @@ SECRET_KEY = 'django-insecure-#w_rsjtsl&$ghu**m1_=+$b8w-st3g&1er*o80e@w@g(fzk&&u
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.vercel.app']
 
 AUTH_USER_MODEL = 'userauths.User'
 
@@ -39,6 +39,7 @@ AUTH_USER_MODEL = 'userauths.User'
 CORS_ALLOW_ALL_ORIGINS = True
 
 INSTALLED_APPS = [
+    "whitenoise.runserver_nostatic",
     'jazzmin',
     
     'django.contrib.admin',
@@ -66,6 +67,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -94,16 +96,27 @@ TEMPLATES = [
 
 
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+WSGI_APPLICATION = 'backend.wsgi.app'
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres.stpqjaflolvatmyxueif',
+        'PASSWORD':env('PASSWORD'),
+        'HOST': 'aws-1-ap-southeast-1.pooler.supabase.com',
+        'PORT': '6543'
     }
 }
 
