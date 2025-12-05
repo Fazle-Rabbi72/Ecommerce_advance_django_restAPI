@@ -1,7 +1,7 @@
 from django.shortcuts import render,redirect
 from django.conf import settings
 
-from store.models import Category,Product,Tax,Color,Size,Gallery,Specification,ProductFaq,Review,Wishlist,Cart,CartOrder,CartOrderItem,Coupon,Notification
+from store.models import Category,Product,Tax,Review,Cart,CartOrder,CartOrderItem,Coupon,Notification
 from userauths.models import User
 from store.serializers import ProductSerializer,CategorySerializer,CartSerializer,CartOrderSerializer,CouponSerializer,NotificationSerializer,ReviewSerializer
 
@@ -103,7 +103,7 @@ class CartAPIView(generics.ListCreateAPIView):
             cart.tax_fee=int(quantity)*Decimal(tax_rate)
             cart.country=country
             cart.size=size
-            cart.color=color
+            cart.color=color   
             cart.cart_id=cart_id
             
             service_fee_percentage=20/100
@@ -381,8 +381,7 @@ class StripeCheckoutView(generics.CreateAPIView):
 
 
 class PaymentSuccessView(generics.CreateAPIView):
-    serializer_class=CartOrderSerializer
-    permission_classes=[AllowAny]       
+    serializer_class=CartOrderSerializer      
     queryset=CartOrder.objects.all()
     
     def create(self,request,*args,**kwargs):
@@ -393,6 +392,7 @@ class PaymentSuccessView(generics.CreateAPIView):
        
        order=CartOrder.objects.get(oid=order_oid)
        order_items=CartOrderItem.objects.filter(order=order)
+       print(order_items.count())
        if session_id != 'null':
            session = stripe.checkout.Session.retrieve(session_id)
            
@@ -468,7 +468,7 @@ class ReviewListAPIView(generics.ListCreateAPIView):
         
         return Response({"message":"Review created successfully"}, status=status.HTTP_200_OK)
 
-class SearchProductAPIView(generics.ListCreateAPIView):
+class  SearchProductAPIView(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
     permission_classes= [AllowAny]
 

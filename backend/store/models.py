@@ -34,7 +34,7 @@ class Product(models.Model):
         
     )
     
-    title=models.CharField(max_length=100)
+    title=models.CharField(max_length=500)
     image=models.FileField(upload_to="products",null=True,blank=True,default="product.jpg")
     description=models.TextField(null=True,blank=True)
     category=models.ForeignKey(Category, on_delete=models.SET_NULL,null=True,blank=True)
@@ -49,7 +49,7 @@ class Product(models.Model):
     rating=models.PositiveIntegerField(default=0,null=True,blank=True)
     vendor=models.ForeignKey(Vendor, on_delete=models.CASCADE)
     pid=ShortUUIDField(unique=True, length=10, max_length=10, alphabet="abcdefg12345")
-    slug=models.SlugField(null=True,blank=True)
+    slug=models.SlugField(max_length=500,null=True,blank=True)
     date=models.DateTimeField(auto_now_add=True)
     
     
