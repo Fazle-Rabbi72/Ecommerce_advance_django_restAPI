@@ -10,31 +10,45 @@ const CreatePassword = () => {
   const [searchParams] = useSearchParams();
   const otp = searchParams.get("otp");
   const uidb64 = searchParams.get("uidb64");
+  const reset_token = searchParams.get("reset_token"); // optional
+
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!otp || !uidb64) {
+      alert("Invalid or expired password reset link");
+      return;
+    }
+
     if (password !== confirmPassword) {
-      alert("Password does not match");
+      alert("Passwords do not match!");
       return;
     }
 
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append("password", password);
-    formData.append("otp", otp);
-    formData.append("uidb64", uidb64);
+    const payload = {
+      password: password,
+      otp: otp,
+      uidb64: uidb64,
+      reset_token: reset_token, // use only if backend supports
+    };
 
     try {
-      const res = await apiInstance.post(`user/password-change/`, formData);
-      alert("Password changed successfully");
-      console.log(res.data);
+      const res = await apiInstance.post("user/password-change/", payload);
+
+      alert("Password changed successfully!");
       navigate("/login");
     } catch (error) {
       console.error(error);
-      alert("An error occurred while trying to change password");
+
+      if (error.response?.data?.message) {
+        alert(error.response.data.message);
+      } else {
+        alert("Something went wrong while changing password.");
+      }
     }
 
     setLoading(false);
@@ -42,8 +56,13 @@ const CreatePassword = () => {
 
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-      <div className="card shadow-lg p-4" style={{ maxWidth: "400px", width: "100%" }}>
-        <h3 className="text-center mb-4 text-primary fw-bold">Create New Password</h3>
+      <div
+        className="card shadow-lg p-4"
+        style={{ maxWidth: "400px", width: "100%" }}
+      >
+        <h3 className="text-center mb-4 text-primary fw-bold">
+          Create New Password
+        </h3>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
