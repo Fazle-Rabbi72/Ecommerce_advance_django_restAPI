@@ -368,8 +368,8 @@ class StripeCheckoutView(generics.CreateAPIView):
                     },
                 ],
                 mode='payment',
-                success_url='http://localhost:5173/payment-success/'+order.oid +'?session_id={CHECKOUT_SESSION_ID}',
-                cancel_url='http://localhost:5173/payment-failed/?session_id={CHECKOUT_SESSION_ID}',
+                success_url='https://multi-ecommerce-frontend.vercel.app/payment-success/'+order.oid +'?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url='https://multi-ecommerce-frontend.vercel.app/payment-failed/?session_id={CHECKOUT_SESSION_ID}',
             )
         
             order.stripe_session_id=checkout_session.id
@@ -423,6 +423,10 @@ class PaymentSuccessView(generics.CreateAPIView):
                     msg.attach_alternative(html_body,'text/html')
                     msg.send()
                     #send email to vendor
+                    #cart empty functionality---
+                    if order.buyer:
+                        Cart.objects.filter(user=order.buyer).delete()  
+                         
                     return Response({'message':'Payment Successfull'},status=status.HTTP_200_OK)
                else:
                    return Response({'message':'Already Paid'},status=status.HTTP_200_OK)

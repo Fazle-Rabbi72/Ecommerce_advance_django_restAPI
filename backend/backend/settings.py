@@ -94,16 +94,16 @@ TEMPLATES = [
     },
 ]
 
-# REST_FRAMEWORK = {
-#     'DEFAULT_THROTTLE_CLASSES': [
-#         'rest_framework.throttling.ScopedRateThrottle',
-#     ],
-#     'DEFAULT_THROTTLE_RATES': {
-#     'password_reset': '10/min',     
-#     'password_change': '10/min',
-# }
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+    'password_reset': '10/min',     
+    'password_change': '10/min',
+}
 
-# }
+}
 
 
 WSGI_APPLICATION = 'backend.wsgi.app'
@@ -129,6 +129,18 @@ DATABASES = {
         'PORT': '6543'
     }
 }
+
+# Database for docker run
+# DATABASES = {
+#     'default': {
+#         'ENGINE': env('DB_ENGINE', default='django.db.backends.postgresql'),
+#         'NAME': env('DB_NAME'),
+#         'USER': env('DB_USER'),
+#         'PASSWORD': env('DB_PASSWORD'),
+#         'HOST': env('DB_HOST'),
+#         'PORT': env('DB_PORT'),
+#     }
+# }
 
 
 # Password validation
