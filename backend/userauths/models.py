@@ -33,7 +33,7 @@ class User(AbstractUser):
 
 class Profile(models.Model):
     user=models.OneToOneField(User, on_delete=models.CASCADE)
-    image=models.FileField(upload_to="image", default="default/default-user.jpg", null=True, blank=True)
+    image=models.FileField(upload_to="image", default="default/default-user.jpg", null=True, blank=True, max_length=1000)
     full_name=models.CharField(max_length=100, null=True, blank=True)
     about=models.TextField(null=True, blank=True)
     gender=models.CharField(max_length=100, null=True, blank=True)
@@ -59,11 +59,13 @@ class Profile(models.Model):
         
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.get_or_create(user=instance)
 
 def save_user_profile(sender, instance, **kwargs):
-    instance.profile.save()
-    
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
+    else:
+        Profile.objects.get_or_create(user=instance)
     
 post_save.connect(create_user_profile, sender=User)
 post_save.connect(save_user_profile, sender=User)

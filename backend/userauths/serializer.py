@@ -12,13 +12,15 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token=super().get_token(user)
         
-        token['full_name']=user.full_name
-        token['email']=user.email
-        token['username']=user.username
+        token['full_name'] = user.full_name
+        token['email'] = user.email
+        token['username'] = user.username
+        token['is_superuser'] = user.is_superuser
+        token['is_staff'] = user.is_staff
         try:
-            token['vendor_id']=user.vendor.id
+            token['vendor_id'] = user.vendor.id
         except:
-            token['vendor_id']=0
+            token['vendor_id'] = 0
         
         return token
     

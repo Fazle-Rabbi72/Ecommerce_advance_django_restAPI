@@ -14,6 +14,10 @@ from pathlib import Path
 from datetime import timedelta
 from environs import Env
 import os
+from dotenv import load_dotenv
+from urllib.parse import urlparse, parse_qsl
+
+load_dotenv()
 
 env = Env()
 env.read_env()
@@ -31,7 +35,7 @@ SECRET_KEY = 'django-insecure-#w_rsjtsl&$ghu**m1_=+$b8w-st3g&1er*o80e@w@g(fzk&&u
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.vercel.app']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver', '.vercel.app']
 
 AUTH_USER_MODEL = 'userauths.User'
 
@@ -47,7 +51,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     
     #custom apps
     'store',
@@ -62,7 +68,6 @@ INSTALLED_APPS = [
     'drf_yasg',
     'corsheaders',
     'anymail',
-    'storages',
 ]
 
 MIDDLEWARE = [
@@ -119,16 +124,28 @@ WSGI_APPLICATION = 'backend.wsgi.app'
 #     }
 # }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres.stpqjaflolvatmyxueif',
-        'PASSWORD':env('PASSWORD'),
-        'HOST': 'aws-1-ap-southeast-1.pooler.supabase.com',
-        'PORT': '6543'
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    tmpPostgres = urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': tmpPostgres.path.replace('/', ''),
+            'USER': tmpPostgres.username,
+            'PASSWORD': tmpPostgres.password,
+            'HOST': tmpPostgres.hostname,
+            'PORT': tmpPostgres.port or 5432,
+            'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
+            'CONN_MAX_AGE': 600,
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Database for docker run
 # DATABASES = {
@@ -183,15 +200,27 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-if DEBUG:
-    # Local file storage
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-else:
-    # S3 file storage
-    MEDIA_URL = f"https://{env('AWS_STORAGE_BUCKET_NAME')}.s3.{env('AWS_S3_REGION_NAME')}.amazonaws.com/"
+# Media files handled via Cloudinary
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
+# Cloudinary Configuration
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME', default='lwfgq6n5'),
+    'API_KEY': env('CLOUDINARY_API_KEY', default='268372279838412'),
+    'API_SECRET': env('CLOUDINARY_API_SECRET', default='Zdd3M_uulvq2epQ-9f_HMXtCUuk'),
+}
 
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -200,35 +229,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 STRIPE_PUBLIC_KEY = env("STRIPE_PUBLIC_KEY")
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY")
+FRONTEND_SITE_URL = env("FRONTEND_SITE_URL", default="http://localhost:3000")
 
-
-
-# AWS S3 Configuration
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": {
-            "bucket_name": env("AWS_STORAGE_BUCKET_NAME"),
-            "access_key": env("AWS_ACCESS_KEY_ID"),
-            "secret_key": env("AWS_SECRET_ACCESS_KEY"),
-            "region_name": "ap-southeast-2",
-            "file_overwrite": False,
-            "default_acl": None,
-        },
-    },
-    "staticfiles": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": {
-            "bucket_name": env("AWS_STORAGE_BUCKET_NAME"),
-            "location": "static",
-        },
-    },
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
+    ),
 }
 
 SIMPLE_JWT = {
     # Token lifetime
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),   
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),     
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),   
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=90),     
     "ROTATE_REFRESH_TOKENS": False,                 
     "BLACKLIST_AFTER_ROTATION": True,                
 

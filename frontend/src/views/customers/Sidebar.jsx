@@ -1,59 +1,121 @@
-import React from "react";
-import { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import apiInstance from "../../utils/axios";
 import UserData from "../plugin/UserData";
+import {
+  User,
+  Package,
+  Heart,
+  Settings,
+  LogOut,
+  Shield,
+} from "lucide-react";
 
 const Sidebar = () => {
-  const [profile, setProfile] =useState({})
+  const [profile, setProfile] = useState({});
+  const user_data = UserData();
+  const location = useLocation();
 
-  const user_data=UserData()
+  useEffect(() => {
+    if (!user_data?.user_id) return;
+    let isMounted = true;
 
-  useEffect(()=>{
-    apiInstance.get(`user/profile/${user_data?.user_id}/`).then((res)=>{
-      setProfile(res.data)
-      console.log(res.data)
-      console.log(res.data.image)
-    })
-  },[])
+    apiInstance
+      .get(`user/profile/${user_data.user_id}/`)
+      .then((res) => {
+        if (isMounted) setProfile(res.data || {});
+      })
+      .catch((err) => {
+        console.warn("Profile fetch skipped:", err?.message);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user_data?.user_id]);
+
+  const navItems = [
+    {
+      to: "/customer/account/",
+      label: "My Account",
+      icon: User,
+    },
+    {
+      to: "/customer/orders/",
+      label: "Order History",
+      icon: Package,
+    },
+    {
+      to: "/customer/wishlist/",
+      label: "Saved Wishlist",
+      icon: Heart,
+    },
+  ];
 
   return (
-    <>
-      {/* Left Sidebar */}
-      <div className="col-lg-3 mb-4">
-        <div className="d-flex justify-content-center align-items-center flex-column p-3 shadow rounded">
-          <img
-            src={profile.image}
-            alt="profile"
-            className="rounded-circle mb-3"
-            style={{ width: 120, height: 120, objectFit: "cover" }}
-          />
-          <div className="text-center">
-            <h5 className="mb-1">{profile.full_name}</h5>
-            <a href="#" className="text-decoration-none text-primary">
-              Edit Account
-            </a>
-          </div>
+    <aside className="w-full lg:w-72 shrink-0 space-y-4">
+      {/* Profile Card */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs text-center space-y-3">
+        <div className="relative w-24 h-24 mx-auto rounded-full overflow-hidden bg-gradient-to-tr from-indigo-600 to-violet-500 p-0.5 shadow-md">
+          {profile.image ? (
+            <img
+              src={profile.image}
+              alt="Profile"
+              className="w-full h-full rounded-full object-cover bg-white"
+            />
+          ) : (
+            <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+              <User className="w-10 h-10" />
+            </div>
+          )}
         </div>
 
-        {/* Sidebar Menu */}
-        <ol className="list-group shadow rounded mt-2">
-          <li className="list-group-item fw-bold">Account</li>
-          <li className="list-group-item d-flex justify-content-between align-items-center">
-            <span className="fw-bold">Orders</span>
-            <span className="badge bg-primary rounded-pill">12</span>
-          </li>
-          <li className="list-group-item d-flex justify-content-between align-items-center">
-            <span className="fw-bold">Wishlist</span>
-            <span className="badge bg-primary rounded-pill">12</span>
-          </li>
-          <li className="list-group-item d-flex justify-content-between align-items-center">
-            <span className="fw-bold">Notification</span>
-            <span className="badge bg-primary rounded-pill">12</span>
-          </li>
-          <li className="list-group-item fw-bold">Setting</li>
-        </ol>
+        <div>
+          <h2 className="text-sm font-bold text-slate-900">
+            {profile.full_name || user_data?.full_name || "Customer Account"}
+          </h2>
+          <p className="text-xs text-slate-400 truncate max-w-[200px] mx-auto">
+            {profile.email || user_data?.email || "customer@luxestore.com"}
+          </p>
+        </div>
+
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold">
+          <Shield className="w-3 h-3" /> Verified Member
+        </div>
       </div>
-    </>
+
+      {/* Navigation Menu */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-3 shadow-xs space-y-1">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.to;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-decoration-none transition-all ${
+                isActive
+                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-indigo-600"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+
+        <div className="pt-2 border-t border-slate-100">
+          <Link
+            to="/logout"
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold text-rose-600 hover:bg-rose-50 text-decoration-none transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </Link>
+        </div>
+      </div>
+    </aside>
   );
 };
 

@@ -2,10 +2,22 @@ from rest_framework import serializers
 from store.models import Category,Product,Color,Size,Gallery,Specification,ProductFaq,Review,Wishlist,Cart,CartOrder,CartOrderItem,Coupon,Notification
 from vendor.models import Vendor
 from userauths.serializer import ProfileSerializer
+def _clean_image_url(url):
+    if url and isinstance(url, str) and 'media/http' in url:
+        idx = url.find('media/http')
+        return url[idx + 6:]
+    return url
+
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model=Category
         fields='__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if 'image' in data:
+            data['image'] = _clean_image_url(data['image'])
+        return data
 
 class ColorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,6 +33,12 @@ class GallerySerializer(serializers.ModelSerializer):
     class Meta:
         model=Gallery
         fields='__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if 'image' in data:
+            data['image'] = _clean_image_url(data['image'])
+        return data
 
 class SpecificationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -93,7 +111,13 @@ class CartOrderItemSerializer(serializers.ModelSerializer):
         if request and request.method=='POST':
             self.Meta.depth=0
         else:
-            self.Meta.depth=3
+            self.Meta.depth=1
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if 'product' in data and isinstance(data['product'], dict) and 'image' in data['product']:
+            data['product']['image'] = _clean_image_url(data['product']['image'])
+        return data
 
 class CartOrderSerializer(serializers.ModelSerializer):  
     orderitem=CartOrderItemSerializer(many=True,read_only=True)
@@ -107,7 +131,7 @@ class CartOrderSerializer(serializers.ModelSerializer):
         if request and request.method=='POST':
             self.Meta.depth=0
         else:
-            self.Meta.depth=3
+            self.Meta.depth=1
             
 class CouponSerializer(serializers.ModelSerializer):    
     class Meta:
@@ -153,11 +177,19 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         super(ProductSerializer, self).__init__(*args, **kwargs)
-        request=self.context.get('request')
-        if request and request.method=='POST':
-            self.Meta.depth=0
+        request = self.context.get('request')
+        if request and request.method == 'POST':
+            self.Meta.depth = 0
         else:
-            self.Meta.depth=3
+            self.Meta.depth = 1
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if 'image' in data:
+            data['image'] = _clean_image_url(data['image'])
+        if 'category' in data and isinstance(data['category'], dict) and 'image' in data['category']:
+            data['category']['image'] = _clean_image_url(data['category']['image'])
+        return data
 
 class VendorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -166,11 +198,11 @@ class VendorSerializer(serializers.ModelSerializer):
         
     def __init__(self, *args, **kwargs):
         super(VendorSerializer, self).__init__(*args, **kwargs)
-        request=self.context.get('request')
-        if request and request.method=='POST':
-            self.Meta.depth=0
+        request = self.context.get('request')
+        if request and request.method == 'POST':
+            self.Meta.depth = 0
         else:
-            self.Meta.depth=3
+            self.Meta.depth = 1
 
 
 class SummarySerializer(serializers.Serializer):

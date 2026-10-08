@@ -12,7 +12,7 @@ from django.db.models.signals import post_save
 
 class Category(models.Model):
     title=models.CharField(max_length=100)
-    image=models.FileField(upload_to="category",null=True,blank=True,default="category.jpg")
+    image=models.FileField(upload_to="category",null=True,blank=True,default="category.jpg",max_length=1000)
     active=models.BooleanField(default=True)
     slug=models.SlugField(unique=True)
     
@@ -35,7 +35,7 @@ class Product(models.Model):
     )
     
     title=models.CharField(max_length=500)
-    image=models.FileField(upload_to="products",null=True,blank=True,default="product.jpg")
+    image=models.FileField(upload_to="products",null=True,blank=True,default="product.jpg",max_length=1000)
     description=models.TextField(null=True,blank=True)
     category=models.ForeignKey(Category, on_delete=models.SET_NULL,null=True,blank=True)
     price=models.DecimalField(max_digits=12,decimal_places=3)
@@ -43,14 +43,14 @@ class Product(models.Model):
     shipping_amount=models.DecimalField(max_digits=12,decimal_places=3,default=0.00)
     stock_qty=models.PositiveIntegerField(default=1)
     in_stock=models.BooleanField(default=True)
-    status=models.CharField(max_length=100,choices=STATUS,default="published")
-    featured=models.BooleanField(default=False)
+    status=models.CharField(max_length=100,choices=STATUS,default="published", db_index=True)
+    featured=models.BooleanField(default=False, db_index=True)
     views=models.PositiveIntegerField(default=0)
     rating=models.PositiveIntegerField(default=0,null=True,blank=True)
     vendor=models.ForeignKey(Vendor, on_delete=models.CASCADE)
     pid=ShortUUIDField(unique=True, length=10, max_length=10, alphabet="abcdefg12345")
-    slug=models.SlugField(max_length=500,null=True,blank=True)
-    date=models.DateTimeField(auto_now_add=True)
+    slug=models.SlugField(max_length=500,null=True,blank=True, db_index=True)
+    date=models.DateTimeField(auto_now_add=True, db_index=True)
     
     
     
@@ -59,23 +59,30 @@ class Product(models.Model):
         return self.title
     
     def product_rating(self):
-        product_rating=Review.objects.filter(product=self).aggregate(avg_rating=models.Avg("rating"))
+        if hasattr(self, '_prefetched_objects_cache') and 'review_set' in self._prefetched_objects_cache:
+            reviews = self.review_set.all()
+            if reviews:
+                return sum(r.rating for r in reviews if r.rating) / len(reviews)
+            return self.rating or 0
+        product_rating = Review.objects.filter(product=self).aggregate(avg_rating=models.Avg("rating"))
         return product_rating['avg_rating']
     
     def rating_count(self):
+        if hasattr(self, '_prefetched_objects_cache') and 'review_set' in self._prefetched_objects_cache:
+            return len(self.review_set.all())
         return Review.objects.filter(product=self).count()
     
     def gallery(self):
-        return Gallery.objects.filter(product=self)
+        return self.gallery_set.all()
     
     def specification(self):
-        return Specification.objects.filter(product=self)
+        return self.specification_set.all()
     
     def size(self):
-        return Size.objects.filter(product=self)
+        return self.size_set.all()
     
     def color(self):
-        return Color.objects.filter(product=self)
+        return self.color_set.all()
         
     
     def save(self, *args, **kwargs):
@@ -88,7 +95,7 @@ class Product(models.Model):
 
 class Gallery(models.Model):
     product=models.ForeignKey(Product, on_delete=models.SET_NULL,null=True)
-    image=models.FileField(upload_to="products",default="product.jpg",null=True,blank=True)
+    image=models.FileField(upload_to="products",default="product.jpg",null=True,blank=True,max_length=1000)
     active=models.BooleanField(default=True)
     gid=ShortUUIDField(length=10, max_length=25, alphabet="abcdefghijklmnopqrstuvxyz")
     
@@ -192,9 +199,9 @@ class CartOrder(models.Model):
     
     def __str__(self):
         return self.oid
-    
+
     def orderitem(self):
-        return CartOrderItem.objects.filter(order=self)
+        return self.cartorderitem_set.all()
     
 class CartOrderItem(models.Model):
     order=models.ForeignKey(CartOrder, on_delete=models.CASCADE)

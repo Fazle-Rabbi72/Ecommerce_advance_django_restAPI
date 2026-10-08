@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, BrowserRouter } from "react-router-dom";
 import "./App.css";
 import Login from "./views/auth/Login";
 import Register from "./views/auth/Register";
 import Dashboard from "./views/auth/Dashboard";
 import { useAuthStore } from "./store/auth";
-import { useEffect } from "react";
 import Logout from "./views/auth/Logout";
 import ForgotPassword from "./views/auth/ForgotPassword";
 import CreatePassword from "./views/auth/CreatePassword";
@@ -22,74 +21,117 @@ import CardID from "./views/plugin/CardID";
 import UserData from "./views/plugin/UserData";
 import apiInstance from "./utils/axios";
 import Account from "./views/customers/Account";
-import PrivateRoute from "./layout/PrivateRoute";
-import MainWrapper from "./layout/MainWrapper";
 import Orders from "./views/customers/Orders";
-
+import Wishlist from "./views/customers/Wishlist";
+import AdminDashboard from "./views/admin/AdminDashboard";
+import PrivateRoute from "./layout/PrivateRoute";
+import AdminRoute from "./layout/AdminRoute";
+import MainWrapper from "./layout/MainWrapper";
 
 function App() {
   const hydrateUser = useAuthStore((state) => state.hydrateUser);
-
-  useEffect(() => {
-    hydrateUser(); // refresh হলে cookie থেকে user load হবে
-  }, [hydrateUser]);
-
-  const [count, setCount] = useState(0);
-  const [cartCount, setCartCount] = useState();
+  const [cartCount, setCartCount] = useState(0);
 
   const cartId = CardID();
   const userData = UserData();
 
   useEffect(() => {
-    const url = userData
-      ? `/cart-list/${cartId}/${userData?.user_id}/`
+    hydrateUser();
+  }, [hydrateUser]);
+
+  useEffect(() => {
+    if (!cartId) return;
+    const url = userData?.user_id
+      ? `/cart-list/${cartId}/${userData.user_id}/`
       : `/cart-list/${cartId}/`;
 
-    apiInstance.get(url).then((res) => {
-      setCartCount(res.data.length);
-    });
-    console.log(cartCount);
-  });
+    apiInstance
+      .get(url)
+      .then((res) => {
+        setCartCount(Array.isArray(res.data) ? res.data.length : 0);
+      })
+      .catch((err) => {
+        console.warn("Failed to retrieve initial cart count:", err?.message);
+      });
+  }, [cartId, userData?.user_id]);
 
   return (
     <CartContext.Provider value={[cartCount, setCartCount]}>
       <BrowserRouter>
-        <StoreHeader />
+        <MainWrapper>
+          <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+            <StoreHeader />
 
-       
-          <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/logout" element={<Logout />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/create-new-password" element={<CreatePassword />} />
+            <div className="flex-1">
+              <Routes>
+                {/* Store Routes */}
+                <Route path="/" element={<Products />} />
+                <Route path="/detail/:slug/" element={<ProductDetail />} />
+                <Route path="/cart/" element={<Cart />} />
+                <Route path="/checkout/:order_oid/" element={<Checkout />} />
+                <Route
+                  path="/payment-success/:order_oid/"
+                  element={<PaymentSuccess />}
+                />
+                <Route path="/search/" element={<Search />} />
 
-          {/* Store Components */}
+                {/* Auth Routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/logout" element={<Logout />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/create-new-password" element={<CreatePassword />} />
+                <Route path="/dashboard" element={<Dashboard />} />
 
-          <Route path="/" element={<Products />} />
-          <Route path="/detail/:slug/" element={<ProductDetail />} />
-          <Route path="/cart/" element={<Cart />} />
-          <Route path="/checkout/:order_oid/" element={<Checkout />} />
-          <Route
-            path="/payment-success/:order_oid/"
-            element={<PaymentSuccess />}
-          />
-          <Route path="/search/" element={<Search />} />
+                {/* Customer Protected Routes */}
+                <Route
+                  path="/customer/account/"
+                  element={
+                    <PrivateRoute>
+                      <Account />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/customer/orders/"
+                  element={
+                    <PrivateRoute>
+                      <Orders />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/customer/wishlist/"
+                  element={
+                    <PrivateRoute>
+                      <Wishlist />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/wishlist/"
+                  element={
+                    <PrivateRoute>
+                      <Wishlist />
+                    </PrivateRoute>
+                  }
+                />
 
-          {/* customers routes */}
-          <Route
-            path="/customer/account/"
-            element={
-              
-              <Account />
-              
-            }
-          />
-            <Route path="/customer/orders/" element={<Orders />} />
-        </Routes>
-        
-        <StoreFooter />
+                {/* Admin Portal Route (Superuser Only) */}
+                <Route
+                  path="/admin-dashboard/"
+                  element={
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  }
+                />
+              </Routes>
+            </div>
+
+            <StoreFooter />
+          </div>
+        </MainWrapper>
       </BrowserRouter>
     </CartContext.Provider>
   );

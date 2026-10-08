@@ -1,3 +1,4 @@
+from django.db import models
 from django.shortcuts import render,redirect
 from django.conf import settings
 
@@ -17,26 +18,35 @@ import stripe
 
 
 class OrdersAPIView(generics.ListAPIView):
-    serializer_class=CartOrderSerializer
-    permission_classes=[AllowAny]
+    serializer_class = CartOrderSerializer
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
-        user_id=self.kwargs['user_id']
-        user=User.objects.get(id=user_id)
+        user_id = self.kwargs.get('user_id')
+        user = User.objects.filter(id=user_id).first()
+        if not user:
+            return CartOrder.objects.none()
         
-        orders=CartOrder.objects.filter(buyer=user,payment_status="paid")
+        orders = CartOrder.objects.filter(
+            models.Q(buyer=user) | models.Q(email__iexact=user.email)
+        ).prefetch_related('cartorderitem_set', 'cartorderitem_set__product').order_by('-date')
         return orders
 
 class OrderDetailAPIView(generics.RetrieveAPIView):
-    serializer_class=CartOrderSerializer
-    permission_classes=[AllowAny]
+    serializer_class = CartOrderSerializer
+    permission_classes = [AllowAny]
     
     def get_object(self):
-        user_id=self.kwargs['user_id']
-        order_oid=self.kwargs['order_oid']
-        user=User.objects.get(id=user_id)
+        user_id = self.kwargs.get('user_id')
+        order_oid = self.kwargs.get('order_oid')
+        user = User.objects.filter(id=user_id).first()
+        if not user:
+            return None
         
-        order= CartOrder.objects.get(buyer=user, oid=order_oid,payment_status="paid")
+        order = CartOrder.objects.filter(
+            models.Q(buyer=user) | models.Q(email__iexact=user.email),
+            oid=order_oid
+        ).prefetch_related('cartorderitem_set', 'cartorderitem_set__product').first()
         return order
 class WishlistAPIView(generics.ListCreateAPIView):
     serializer_class= WishlistSerializer

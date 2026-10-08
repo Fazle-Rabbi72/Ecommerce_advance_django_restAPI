@@ -1,21 +1,19 @@
-import React from "react";
-
 const CardID = () => {
-  const generateRandomStiring = () => {
+  const generateRandomString = () => {
     const length = 30;
-    const characters = "ABCDEFGHIJKL1234567";
+    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let randomString = "";
     for (let i = 0; i < length; i++) {
       const randomIndex = Math.floor(Math.random() * characters.length);
       randomString += characters.charAt(randomIndex);
     }
     localStorage.setItem("randomString", randomString);
+    return randomString;
   };
-  const existingRandomString = localStorage.getItem("randomString");
+
+  let existingRandomString = localStorage.getItem("randomString");
   if (!existingRandomString) {
-    generateRandomStiring();
-  } else {
-    // log the existing random string
+    existingRandomString = generateRandomString();
   }
   return existingRandomString;
 };

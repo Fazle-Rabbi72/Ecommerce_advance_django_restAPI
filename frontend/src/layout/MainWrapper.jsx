@@ -1,22 +1,29 @@
-import React from 'react'
-
 import { useEffect, useState } from 'react'
 import { setUser } from '../utils/auth'
 
-const MainWrapper = ({children}) => {
-    const [loading, setLoading] = useState(true)
+const MainWrapper = ({ children }) => {
+  const [loading, setLoading] = useState(true)
 
-    useEffect(async() => {
-        const handler =async () => {
-            setLoading (true)
-            await setUser()
-            setLoading (false)
-
+  useEffect(() => {
+    let isMounted = true
+    const handler = async () => {
+      try {
+        await setUser()
+      } catch (err) {
+        console.error("Auth initialization error:", err)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
         }
-        handler()
-    }, [])
+      }
+    }
+    handler()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
-    return <>{loading ? null : children}</>
+  return loading ? null : children
 }
 
 export default MainWrapper

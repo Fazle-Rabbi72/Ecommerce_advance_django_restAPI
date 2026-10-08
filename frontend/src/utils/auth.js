@@ -1,142 +1,132 @@
-import  { useAuthStore } from "../store/auth";
+import { useAuthStore } from "../store/auth";
 import axios from "./axios";
-import {jwtDecode}  from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import cookies from "js-cookie";
-import Swal from "sweetalert2";
+import { showToast } from "./toast";
 
-const toast = Swal.mixin({
-  toast: true,
-  position: "top",
-  showConfirmButton: false,
-  timer: 3000,
-  timerProgressBar: true,
-});
+export const login = async (email, password) => {
+  try {
+    const { data, status } = await axios.post("user/token/", {
+      email,
+      password,
+    });
 
+    if (status === 200) {
+      setAuthUser(data.access, data.refresh);
+    }
+    showToast.success("Logged in successfully");
 
-export const login =async(email,password)=>{
+    return { data, error: null };
+  } catch (error) {
+    const errorMessage =
+      error?.response?.data?.detail ||
+      error?.response?.data?.message ||
+      "Invalid credentials or server error";
+    showToast.error(errorMessage);
+    return { data: null, error: errorMessage };
+  }
+};
+
+export const register = async (full_name, email, phone, password, password2) => {
+  try {
+    const { data } = await axios.post("user/register/", {
+      full_name,
+      email,
+      phone,
+      password,
+      password2,
+    });
+
+    await login(email, password);
+    showToast.success("Account created successfully");
+    return { data, error: null };
+  } catch (error) {
+    const errorMessage =
+      error?.response?.data?.detail ||
+      error?.response?.data?.message ||
+      "Registration failed. Please check your information.";
+    showToast.error(errorMessage);
+    return {
+      data: null,
+      error: errorMessage,
+    };
+  }
+};
+
+export const logout = () => {
+  cookies.remove("access_token");
+  cookies.remove("refresh_token");
+  useAuthStore.getState().setUser(null);
+  showToast.success("Logged out successfully");
+};
+
+export const setUser = async () => {
+  const accessToken = cookies.get("access_token");
+  const refreshToken = cookies.get("refresh_token");
+  if (!accessToken || !refreshToken) {
+    useAuthStore.getState().setLoading(false);
+    return;
+  }
+
+  if (isAccessTokenExpired(accessToken)) {
     try {
-        const {data,status}= await axios.post("user/token/",{
-            email,
-            password
-        })
-
-        if(status===200){
-            setAuthUser(data.access, data.refresh)
-        }
-        toast.fire({
-            icon: "success",
-            title: "User Logged In Successfully",
-        })
-        
-        return {data, error:null}
-
-
-    } catch (error) {
-         toast.fire({
-            icon: "error",
-            title: error.response.data?.detail || "Something went wrong",
-        })
-        
+      const response = await getRefreshToken(refreshToken);
+      setAuthUser(response.access, response.refresh || refreshToken);
+    } catch {
+      cookies.remove("access_token");
+      cookies.remove("refresh_token");
+      useAuthStore.getState().setUser(null);
     }
-}
+  } else {
+    setAuthUser(accessToken, refreshToken);
+  }
+};
 
+export const setAuthUser = (access_token, refresh_token) => {
+  if (access_token) {
+    cookies.set("access_token", access_token, {
+      expires: 1,
+      secure: window.location.protocol === "https:",
+      sameSite: "Lax",
+    });
+  }
+  if (refresh_token) {
+    cookies.set("refresh_token", refresh_token, {
+      expires: 7,
+      secure: window.location.protocol === "https:",
+      sameSite: "Lax",
+    });
+  }
 
-export const register =async(full_name,email,phone,password,password2)=>{
-    try {
-        const {data,status}= await axios.post("user/register/",{
-            full_name,
-            email,
-            phone,
-            password,
-            password2
-        })
+  try {
+    const user = access_token ? jwtDecode(access_token) : null;
+    useAuthStore.getState().setUser(user);
+  } catch (err) {
+    console.error("Token decode error:", err);
+    useAuthStore.getState().setUser(null);
+  }
 
-        await login(email,password)
-        toast.fire({
-            icon: "success",
-            title: "User Registered Successfully",
-        })
-        return {data, error:null}
+  useAuthStore.getState().setLoading(false);
+};
 
+export const getRefreshToken = async (refreshTokenParam) => {
+  const refreshToken = refreshTokenParam || cookies.get("refresh_token");
+  if (!refreshToken) throw new Error("No refresh token available");
 
-    } catch (error) {
-        toast.fire({
-            icon: "error",
-            title: error.response.data?.detail || "Something went wrong",
-        })
-      return {
-        data: null,
-        error: error.response.data?.detail || "Something went wrong",
-      }     
-    }
+  const response = await axios.post("user/token/refresh/", {
+    refresh: refreshToken,
+  });
+  return response.data;
+};
 
-}
-
-export const logout =()=>{
-    cookies.remove("access_token")
-    cookies.remove("refresh_token")
-    useAuthStore.getState().setUser(null)
-    toast.fire({
-        icon: "success",
-        title: "User Logged Out Successfully",
-    })
-}
-
-export const setUser = async()=>{
-    const accessToken = cookies.get("access_token")
-    const refreshToken = cookies.get("refresh_token")
-    if(!accessToken || !refreshToken){
-        
-        return;
-    }
-    
-    if(isAccessTokenExpired(accessToken)){
-        const response = await getRefreshToken(refreshToken)
-        setAuthUser(response.access, response.refresh)
-    }else{
-        setAuthUser(accessToken, refreshToken)
-    }
-}
-
-
-export const setAuthUser=(access_token, refresh_token)=>{
-    cookies.set("access_token", access_token,{
-        expires:1,
-        secure:true
-    })
-    cookies.set("refresh_token", refresh_token,{
-        expires:7,
-        secure:true
-    })
-
-    const user=jwtDecode (access_token)?? null
-
-    if(user){
-        useAuthStore.getState().setUser(user)
-    }
-    
-    useAuthStore.getState().setLoading(false)
-    
-}
-
-export const getRefreshToken=async(refresh_token)=>{
-    const refreshToken= cookies.get("refresh_token")
-    const response = await axios.post("user/token/refresh/",{
-        refresh:refreshToken
-    })
-    return response.data
-}
-
-const isAccessTokenExpired=(access_token)=>{
-    try {
-        const decoded = jwtDecode (access_token)
-        const currentTime = Date.now() / 1000
-        if(decoded.exp < currentTime){
-            return true
-        }
-        return false
-    } catch (error) {
-        console.log(error)
-        return true
-    }
-}
+export const isAccessTokenExpired = (access_token) => {
+  if (!access_token) return true;
+  try {
+    const decoded = jwtDecode(access_token);
+    const currentTime = Date.now() / 1000;
+    return decoded.exp < currentTime;
+  } catch (error) {
+    console.error(error);
+    return true;
+  }
+};

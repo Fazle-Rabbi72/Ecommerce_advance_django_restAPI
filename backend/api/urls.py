@@ -75,5 +75,16 @@ urlpatterns =[
     path('vendor/requests/', vendor_views.VendorRequestListView.as_view(), name='vendor-request-list'),
     path('vendor/request/<int:pk>/approve/', vendor_views.ApproveVendorRequestView.as_view(), name='vendor-request-approve'),
     
-       
+    # Global Admin Dashboard Endpoints
+    path('admin/stats/', store_views.AdminDashboardStatsView.as_view()),
+    path('admin/vendors/', store_views.AdminVendorListCreateView.as_view()),
+    path('admin/vendors/<int:vendor_id>/toggle/', store_views.AdminVendorToggleStatusView.as_view()),
+    path('admin/categories/', store_views.AdminCategoryListCreateView.as_view()),
+    path('admin/categories/<int:pk>/', store_views.AdminCategoryDetailView.as_view()),
+    path('admin/products/', store_views.AdminProductListCreateView.as_view()),
+    path('admin/products/<int:pk>/', store_views.AdminProductDetailUpdateDeleteView.as_view()),
+    path('admin/upload-image/', store_views.AdminImageUploadView.as_view()),
+    path('upload-image/', store_views.AdminImageUploadView.as_view()),
+    path('admin/orders/', store_views.AdminOrderListView.as_view()),
+    path('admin/orders/<str:order_oid>/status/', store_views.AdminOrderStatusUpdateView.as_view()),
 ]
