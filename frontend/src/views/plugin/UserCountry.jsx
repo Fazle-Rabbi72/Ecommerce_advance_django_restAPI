@@ -1,14 +1,26 @@
 import { useState, useEffect } from "react";
 
+let cachedAddress = null;
+
 function GetCurrentAddress() {
-  const [address, setAddress] = useState({
-    country: "United States",
-    city: "New York",
-    state: "NY",
+  const [address, setAddress] = useState(() => {
+    if (cachedAddress) return cachedAddress;
+    try {
+      const stored = sessionStorage.getItem("cached_user_address");
+      if (stored) {
+        cachedAddress = JSON.parse(stored);
+        return cachedAddress;
+      }
+    } catch (e) {}
+    return {
+      country: "United States",
+      city: "New York",
+      state: "NY",
+    };
   });
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (cachedAddress || !navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -18,7 +30,14 @@ function GetCurrentAddress() {
           .then((res) => res.json())
           .then((data) => {
             if (data?.address) {
+              cachedAddress = data.address;
               setAddress(data.address);
+              try {
+                sessionStorage.setItem(
+                  "cached_user_address",
+                  JSON.stringify(data.address)
+                );
+              } catch (e) {}
             }
           })
           .catch((err) => {

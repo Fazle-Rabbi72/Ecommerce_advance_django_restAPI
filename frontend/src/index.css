@@ -147,9 +147,12 @@ body {
     max-width: 2360px;
   }
 }
-@media (min-width: 3840px) {
-  .max-w-screen-4k {
-    max-width: 3400px;
-  }
+/* Hide scrollbar utility for sleek carousels */
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+}
+.scrollbar-none {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
 }
 

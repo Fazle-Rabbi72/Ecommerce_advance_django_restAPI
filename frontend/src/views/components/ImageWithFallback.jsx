@@ -4,6 +4,7 @@ const ImageWithFallback = ({
   src,
   alt = "Product Image",
   className = "",
+  imgClassName = "",
   style = {},
   fallbackSrc,
 }) => {
@@ -20,11 +21,16 @@ const ImageWithFallback = ({
     effectiveSrc = effectiveSrc.substring(idx + 6);
   }
 
+  const isContain = className.includes("object-contain") || imgClassName.includes("object-contain");
+  const objectFitClass = isContain ? "object-contain" : "object-cover";
+  const isRound = className.includes("rounded-full") || imgClassName.includes("rounded-full");
+  const roundClass = isRound ? "rounded-full" : "";
+
   return (
     <div className={`relative overflow-hidden ${className}`} style={style}>
       {/* Shimmer placeholder while loading */}
       {!loaded && !error && (
-        <div className="absolute inset-0 bg-slate-100 skeleton-shimmer z-0" />
+        <div className="absolute inset-0 bg-slate-100/40 skeleton-shimmer z-0" />
       )}
 
       <img
@@ -36,9 +42,9 @@ const ImageWithFallback = ({
           setError(true);
           setLoaded(true);
         }}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${
+        className={`w-full h-full ${objectFitClass} ${roundClass} transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"
-        }`}
+        } ${imgClassName}`}
       />
     </div>
   );

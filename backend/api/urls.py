@@ -45,14 +45,19 @@ urlpatterns =[
     
     
     # Vendor Dashboard Endpoints
+    path('vendor/me/', vendor_views.MyVendorProfileView.as_view()),
+    path('vendor/stats/<vendor_id>/', vendor_views.DashboardStatsAPIView.as_view()),
     path('vendor/stats/<vendor_id>', vendor_views.DashboardStatsAPIView.as_view()),
     path('vendor-orders-chart/<vendor_id>/', vendor_views.MonthlyOrderChartAPIView),
     path('vendor-product-chart/<vendor_id>/', vendor_views.MonthlyProductChartAPIView),
     path('vendor/orders/<vendor_id>/', vendor_views.ProductAPIView.as_view()),
+    path('vendor/orders-list/<vendor_id>/', vendor_views.VendorOrdersListView.as_view()),
     path('vendor/orders/<vendor_id>/<order_oid>/', vendor_views.OrderAPIView.as_view()),
     path('vendor-product/<vendor_id>/', vendor_views.FilterProductAPIView.as_view()),
     path('vendor-earning/<vendor_id>/', vendor_views.EarningAPIView.as_view()),
     path('vendor-monthly-earning/<vendor_id>/', vendor_views.MonthlyEarningTracker),
+    path('vendor/payouts/<vendor_id>/', vendor_views.VendorPayoutListCreateView.as_view()),
+    path('vendor/bank-settings/<vendor_id>/', vendor_views.VendorBankUpdateView.as_view()),
     path('vendor-reviews/<vendor_id>/', vendor_views.ReviewListAPIView.as_view()),
     path('vendor-reviews/<vendor_id>/<review_id>/', vendor_views.ReviewDetailAPIView.as_view()),
     path('vendor-coupon-list/<vendor_id>/', vendor_views.CouponListCreateAPIView.as_view()),
@@ -74,6 +79,7 @@ urlpatterns =[
     path('vendor/request/me/', vendor_views.MyVendorRequestView.as_view(), name='vendor-request-me'),
     path('vendor/requests/', vendor_views.VendorRequestListView.as_view(), name='vendor-request-list'),
     path('vendor/request/<int:pk>/approve/', vendor_views.ApproveVendorRequestView.as_view(), name='vendor-request-approve'),
+    path('vendor/request/<int:pk>/reject/', vendor_views.RejectVendorRequestView.as_view(), name='vendor-request-reject'),
     
     # Global Admin Dashboard Endpoints
     path('admin/stats/', store_views.AdminDashboardStatsView.as_view()),
@@ -87,4 +93,6 @@ urlpatterns =[
     path('upload-image/', store_views.AdminImageUploadView.as_view()),
     path('admin/orders/', store_views.AdminOrderListView.as_view()),
     path('admin/orders/<str:order_oid>/status/', store_views.AdminOrderStatusUpdateView.as_view()),
+    path('admin/payouts/', vendor_views.AdminPayoutListView.as_view()),
+    path('admin/payouts/<int:pk>/status/', vendor_views.AdminPayoutStatusUpdateView.as_view()),
 ]

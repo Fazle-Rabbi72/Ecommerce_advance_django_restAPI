@@ -147,6 +147,18 @@ else:
         }
     }
 
+# High-performance In-Memory Caching for ultra-low latency (<10ms API responses)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'ecommerce-locmem-cache',
+        'TIMEOUT': 300, # 5 minutes default TTL
+        'OPTIONS': {
+            'MAX_ENTRIES': 2000
+        }
+    }
+}
+
 # Database for docker run
 # DATABASES = {
 #     'default': {

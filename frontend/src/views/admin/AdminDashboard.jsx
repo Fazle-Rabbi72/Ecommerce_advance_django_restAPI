@@ -68,6 +68,12 @@ const AdminDashboard = () => {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderSearch, setOrderSearch] = useState("");
 
+  // Seller Applications & Payouts State
+  const [vendorRequests, setVendorRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [adminPayouts, setAdminPayouts] = useState([]);
+  const [loadingPayouts, setLoadingPayouts] = useState(false);
+
   // Modals
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showEditProductModal, setShowEditProductModal] = useState(false);
@@ -184,6 +190,74 @@ const AdminDashboard = () => {
     }
   };
 
+  // Fetch Vendor Requests
+  const fetchVendorRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const res = await apiInstance.get("vendor/requests/");
+      setVendorRequests(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.warn("Could not load vendor requests:", err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  // Fetch Admin Payouts
+  const fetchAdminPayouts = async () => {
+    setLoadingPayouts(true);
+    try {
+      const res = await apiInstance.get("admin/payouts/");
+      setAdminPayouts(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.warn("Could not load admin payouts:", err);
+    } finally {
+      setLoadingPayouts(false);
+    }
+  };
+
+  const handleApproveRequest = async (reqId) => {
+    try {
+      await apiInstance.patch(`vendor/request/${reqId}/approve/`);
+      showToast.success("Vendor approved and seller store activated!");
+      fetchVendorRequests();
+      fetchStats();
+      fetchVendors();
+    } catch (err) {
+      showToast.error("Failed to approve request.");
+    }
+  };
+
+  const handleRejectRequest = async (reqId) => {
+    if (!window.confirm("Reject and remove this vendor request?")) return;
+    try {
+      await apiInstance.patch(`vendor/request/${reqId}/reject/`);
+      showToast.info("Vendor request rejected.");
+      fetchVendorRequests();
+      fetchStats();
+    } catch (err) {
+      showToast.error("Failed to reject request.");
+    }
+  };
+
+  const handleUpdatePayout = async (payoutId, newStatus) => {
+    let txId = "";
+    if (newStatus === "paid") {
+      txId = window.prompt("Enter Bank Transfer / bKash Transaction ID / Reference (optional):") || "";
+    }
+    try {
+      await apiInstance.patch(`admin/payouts/${payoutId}/status/`, {
+        status: newStatus,
+        transaction_id: txId,
+      });
+      showToast.success(`Payout marked as ${newStatus}!`);
+      fetchAdminPayouts();
+      fetchStats();
+    } catch (err) {
+      showToast.error("Failed to update payout status.");
+    }
+  };
+
   useEffect(() => {
     if (isSuperUser) {
       fetchStats();
@@ -204,6 +278,8 @@ const AdminDashboard = () => {
     if (!isSuperUser) return;
     if (activeTab === "overview") fetchStats();
     if (activeTab === "vendors") fetchVendors();
+    if (activeTab === "requests") fetchVendorRequests();
+    if (activeTab === "payouts") fetchAdminPayouts();
     if (activeTab === "products") {
       fetchProducts();
       fetchVendors();
@@ -765,12 +841,24 @@ const AdminDashboard = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex gap-2 sm:gap-4 overflow-x-auto py-6 border-b border-slate-800/80 no-scrollbar">
+      <div className="flex gap-2 sm:gap-3 overflow-x-auto py-6 border-b border-slate-800/80 no-scrollbar">
         {[
           { id: "overview", label: "Executive Overview", icon: LayoutDashboard },
-          { id: "vendors", label: "Vendor Management", icon: Users },
-          { id: "products", label: "Product Catalog (Multi-Images & Specs)", icon: Package },
-          { id: "orders", label: "Order Tracking & Logistics", icon: Truck },
+          { id: "vendors", label: "Vendors & Stores", icon: Store },
+          {
+            id: "requests",
+            label: "Seller Applications",
+            icon: Users,
+            badge: stats.pending_vendor_requests,
+          },
+          {
+            id: "payouts",
+            label: "Vendor Payouts",
+            icon: DollarSign,
+            badge: stats.pending_payouts,
+          },
+          { id: "products", label: "Product Catalog", icon: Package },
+          { id: "orders", label: "Orders & Logistics", icon: Truck },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -778,7 +866,7 @@ const AdminDashboard = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all shrink-0 ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
                 isActive
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]"
                   : "bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800"
@@ -786,6 +874,11 @@ const AdminDashboard = () => {
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
+              {tab.badge > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] animate-pulse">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -794,8 +887,30 @@ const AdminDashboard = () => {
       {/* TAB 1: EXECUTIVE OVERVIEW */}
       {activeTab === "overview" && (
         <div className="py-8 space-y-8 animate-in fade-in duration-200">
-          {/* Key KPI Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Key KPI Metric Cards (5 Columns including 0.1% Platform Profit) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
+            {/* 0.1% Marketplace Admin Commission (Highlight) */}
+            <div className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-slate-900 p-6 rounded-3xl border border-emerald-500/40 shadow-xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-6 text-emerald-400/10 group-hover:text-emerald-400/20 transition-colors">
+                <DollarSign className="w-24 h-24 -mr-6 -mt-6" />
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  0.1% Platform Profit
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black">
+                  Admin Fee
+                </span>
+              </div>
+              <div className="text-3xl font-extrabold text-emerald-400 mb-2">
+                ${Number(stats.admin_commission || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-300/80 font-medium">
+                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
+                Retained from vendor product sales
+              </div>
+            </div>
+
             {/* Total Revenue */}
             <div className="bg-gradient-to-br from-slate-800/90 to-slate-800/50 p-6 rounded-3xl border border-slate-700/60 shadow-lg relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-6 text-indigo-400/10 group-hover:text-indigo-400/20 transition-colors">
@@ -803,7 +918,7 @@ const AdminDashboard = () => {
               </div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Gross Revenue (Paid)
+                  Gross Platform GMV
                 </span>
                 <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                   <DollarSign className="w-4 h-4" />
@@ -812,9 +927,8 @@ const AdminDashboard = () => {
               <div className="text-3xl font-extrabold text-white mb-2">
                 ${Number(stats.total_revenue || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                Live Stripe & NeonDB verified
+              <div className="flex items-center gap-1.5 text-xs text-indigo-300 font-semibold">
+                Total marketplace transaction volume
               </div>
             </div>
 
@@ -835,7 +949,7 @@ const AdminDashboard = () => {
                 {stats.total_orders || 0}
               </div>
               <div className="text-xs text-slate-400">
-                <span className="text-amber-400 font-bold">{stats.pending_orders || 0}</span> orders awaiting fulfillment
+                <span className="text-amber-400 font-bold">{stats.pending_orders || 0}</span> orders awaiting delivery
               </div>
             </div>
 
@@ -867,7 +981,7 @@ const AdminDashboard = () => {
               </div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Registered Vendors
+                  Active Vendors
                 </span>
                 <span className="p-2 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20">
                   <Users className="w-4 h-4" />
@@ -877,7 +991,7 @@ const AdminDashboard = () => {
                 {stats.total_vendors || 0}
               </div>
               <div className="text-xs text-slate-400">
-                Multi-vendor marketplace sellers
+                <span className="text-amber-400 font-bold">{stats.pending_vendor_requests || 0}</span> new applications
               </div>
             </div>
           </div>
@@ -1145,6 +1259,265 @@ const AdminDashboard = () => {
                           >
                             {vendor.active ? "Deactivate" : "Activate"}
                           </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: SELLER APPLICATIONS */}
+      {activeTab === "requests" && (
+        <div className="py-8 space-y-6 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-white">Seller Registration Requests</h2>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {vendorRequests.filter((r) => r.status === "pending").length} Pending
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Review onboarding applications. Approving a request instantly grants seller privileges and provisions their store.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchVendorRequests}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh List
+            </button>
+          </div>
+
+          <div className="bg-slate-800/50 rounded-3xl border border-slate-700/60 overflow-hidden">
+            {loadingRequests ? (
+              <div className="py-20 text-center text-slate-400 text-xs">
+                Loading seller requests...
+              </div>
+            ) : vendorRequests.length === 0 ? (
+              <div className="py-20 text-center">
+                <ShieldCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <h3 className="text-sm font-bold text-slate-300">No Pending Applications</h3>
+                <p className="text-xs text-slate-500 mt-1">All seller requests have been processed.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-700">
+                    <tr>
+                      <th className="py-3.5 px-4">Store / Business</th>
+                      <th className="py-3.5 px-4">Applicant</th>
+                      <th className="py-3.5 px-4">Contact</th>
+                      <th className="py-3.5 px-4">Description</th>
+                      <th className="py-3.5 px-4">Applied Date</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {vendorRequests.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-700/30 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold overflow-hidden">
+                              {req.image ? (
+                                <img src={req.image} alt={req.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <Store className="w-4 h-4" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-white text-sm">
+                                {req.name || "Vendor Application"}
+                              </div>
+                              <div className="text-[10px] text-slate-400">
+                                ID: #{req.id}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-semibold text-slate-200">
+                            {req.user?.full_name || req.user?.username || req.user?.email || "User"}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {req.user?.email || "No email"}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="text-slate-300 font-mono text-[11px]">{req.mobile || "N/A"}</div>
+                          <div className="text-slate-400 text-[10px]">{req.email || ""}</div>
+                        </td>
+                        <td className="py-3.5 px-4 max-w-xs truncate text-slate-400 text-xs">
+                          {req.description || "No description provided."}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-400 text-[11px] whitespace-nowrap">
+                          {req.date ? new Date(req.date).toLocaleDateString() : "Recent"}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            req.status === "approved"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : req.status === "rejected"
+                              ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                              : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          }`}>
+                            {req.status || "pending"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {req.status !== "approved" && (
+                              <button
+                                type="button"
+                                onClick={() => handleApproveRequest(req.id)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                              </button>
+                            )}
+                            {req.status !== "rejected" && (
+                              <button
+                                type="button"
+                                onClick={() => handleRejectRequest(req.id)}
+                                className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <XCircle className="w-3.5 h-3.5" /> Reject
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: VENDOR PAYOUTS & DISBURSEMENTS */}
+      {activeTab === "payouts" && (
+        <div className="py-8 space-y-6 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-white">Vendor Payouts & Disbursements</h2>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  0.1% Platform Fee Model
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Disburse vendor balances via bank wire or mobile banking (bKash/Nagad). Admin retains 0.1% platform fee automatically.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchAdminPayouts}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh Payouts
+            </button>
+          </div>
+
+          <div className="bg-slate-800/50 rounded-3xl border border-slate-700/60 overflow-hidden">
+            {loadingPayouts ? (
+              <div className="py-20 text-center text-slate-400 text-xs">
+                Loading payout records...
+              </div>
+            ) : adminPayouts.length === 0 ? (
+              <div className="py-20 text-center">
+                <DollarSign className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <h3 className="text-sm font-bold text-slate-300">No Withdrawal Requests</h3>
+                <p className="text-xs text-slate-500 mt-1">Vendors have not submitted any payout requests yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-700">
+                    <tr>
+                      <th className="py-3.5 px-4">Payout ID</th>
+                      <th className="py-3.5 px-4">Vendor / Store</th>
+                      <th className="py-3.5 px-4">Amount</th>
+                      <th className="py-3.5 px-4">Method & Account</th>
+                      <th className="py-3.5 px-4">Transaction Ref</th>
+                      <th className="py-3.5 px-4">Date</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {adminPayouts.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-700/30 transition-colors">
+                        <td className="py-3.5 px-4 font-mono text-slate-400 text-[11px]">
+                          #{p.id}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-white text-sm">
+                            {p.vendor_name || `Vendor #${p.vendor}`}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Vendor ID: {p.vendor}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-extrabold text-emerald-400 text-sm">
+                          ${Number(p.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="capitalize font-semibold text-slate-200">
+                            {p.payout_method || "Bank Wire"}
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-mono">
+                            {p.account_details || "No details provided"}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-300">
+                          {p.transaction_id || <span className="text-slate-500 italic">None</span>}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-400 text-[11px] whitespace-nowrap">
+                          {p.created_at ? new Date(p.created_at).toLocaleDateString() : "Recent"}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            p.status === "paid"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : p.status === "rejected"
+                              ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                              : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          }`}>
+                            {p.status === "paid" && <CheckCircle2 className="w-3 h-3" />}
+                            {p.status === "pending" && <Clock className="w-3 h-3" />}
+                            {p.status === "rejected" && <XCircle className="w-3 h-3" />}
+                            {p.status || "pending"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          {p.status === "pending" ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdatePayout(p.id, "paid")}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Mark Paid
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdatePayout(p.id, "rejected")}
+                                className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <XCircle className="w-3.5 h-3.5" /> Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 italic">Closed</span>
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Heart,
   ShieldCheck,
+  Store,
   MapPin,
   Flame,
   ArrowRight,
@@ -56,7 +57,7 @@ const StoreHeader = () => {
     return () => {
       isMounted = false;
     };
-  }, [user?.user_id, location.pathname]);
+  }, [user?.user_id]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -198,6 +199,16 @@ const StoreHeader = () => {
               </Link>
             </nav>
 
+            {/* Seller Portal Shortcut */}
+            <Link
+              to="/vendor/dashboard/"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold transition-all text-decoration-none shadow-sm"
+              title="Seller & Vendor Dashboard"
+            >
+              <Store className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Seller Portal</span>
+            </Link>
+
             {/* Admin Hub Shortcut */}
             {isAdmin && (
               <Link
@@ -282,6 +293,13 @@ const StoreHeader = () => {
                           Admin Dashboard
                         </Link>
                       )}
+                      <Link
+                        to="/vendor/dashboard/"
+                        className="flex items-center gap-2.5 px-4 py-2 font-bold text-emerald-600 hover:bg-emerald-50 text-decoration-none transition-colors"
+                      >
+                        <Store className="w-4 h-4 text-emerald-600" />
+                        Seller Dashboard
+                      </Link>
                       <Link
                         to="/customer/account/"
                         className="flex items-center gap-2.5 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600 text-decoration-none transition-colors"
@@ -395,6 +413,13 @@ const StoreHeader = () => {
               >
                 Live Order Tracking
               </Link>
+              <Link
+                to="/vendor/dashboard/"
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-decoration-none flex items-center gap-2"
+              >
+                <Store className="w-4 h-4 text-emerald-600" />
+                Seller Dashboard Portal
+              </Link>
               {isAdmin && (
                 <Link
                   to="/admin-dashboard/"
@@ -421,18 +446,27 @@ const StoreHeader = () => {
                   </Link>
                 </>
               ) : (
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="flex gap-2">
+                    <Link
+                      to="/login"
+                      className="flex-1 text-center py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold text-decoration-none"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      to="/register"
+                      className="flex-1 text-center py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold text-decoration-none"
+                    >
+                      Register
+                    </Link>
+                  </div>
                   <Link
-                    to="/login"
-                    className="flex-1 text-center py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold text-decoration-none"
+                    to="/vendor/login/"
+                    className="py-2.5 px-3 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl text-xs text-decoration-none flex items-center justify-center gap-2"
                   >
-                    Sign In
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="flex-1 text-center py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold text-decoration-none"
-                  >
-                    Register
+                    <Store className="w-4 h-4 text-emerald-600" />
+                    <span>Seller Central / Vendor Sign In</span>
                   </Link>
                 </div>
               )}

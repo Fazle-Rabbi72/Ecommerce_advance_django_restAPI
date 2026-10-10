@@ -24,6 +24,9 @@ import Account from "./views/customers/Account";
 import Orders from "./views/customers/Orders";
 import Wishlist from "./views/customers/Wishlist";
 import AdminDashboard from "./views/admin/AdminDashboard";
+import VendorDashboard from "./views/vendor/VendorDashboard";
+import VendorLogin from "./views/vendor/VendorLogin";
+import VendorRegister from "./views/vendor/VendorRegister";
 import PrivateRoute from "./layout/PrivateRoute";
 import AdminRoute from "./layout/AdminRoute";
 import MainWrapper from "./layout/MainWrapper";
@@ -117,9 +120,41 @@ function App() {
                   }
                 />
 
+                {/* Vendor / Seller Authentication & Registration Routes */}
+                <Route path="/vendor/login/" element={<VendorLogin />} />
+                <Route path="/vendor-login/" element={<VendorLogin />} />
+                <Route path="/vendor/register/" element={<VendorRegister />} />
+                <Route path="/vendor-register/" element={<VendorRegister />} />
+
+                {/* Vendor / Seller Dashboard Routes */}
+                <Route
+                  path="/vendor/dashboard/"
+                  element={
+                    <PrivateRoute>
+                      <VendorDashboard />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/vendor-dashboard/"
+                  element={
+                    <PrivateRoute>
+                      <VendorDashboard />
+                    </PrivateRoute>
+                  }
+                />
+
                 {/* Admin Portal Route (Superuser Only) */}
                 <Route
                   path="/admin-dashboard/"
+                  element={
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/dashboard/"
                   element={
                     <AdminRoute>
                       <AdminDashboard />

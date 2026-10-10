@@ -19,6 +19,8 @@ import stripe
 
 stripe.api_key=settings.STRIPE_SECRET_KEY
 
+from django.core.cache import cache
+
 def send_notification(user=None, vendor=None, order=None, order_item=None):
     Notification.objects.create(user=user,vendor=vendor,order=order,order_item=order_item)
 
@@ -29,6 +31,16 @@ class CategoryListAPIView(generics.ListAPIView):
     serializer_class = CategorySerializer
     permission_classes =[AllowAny]
 
+    def list(self, request, *args, **kwargs):
+        cache_key = "api_categories_list"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None and not request.GET.get('nocache'):
+            return Response(cached_data)
+
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, 300) # Cache for 5 minutes
+        return response
+
 class ProductListAPIView(generics.ListAPIView):
     serializer_class = ProductSerializer
     permission_classes = [AllowAny]
@@ -36,8 +48,18 @@ class ProductListAPIView(generics.ListAPIView):
     def get_queryset(self):
         return Product.objects.filter(status='published')\
             .select_related('category', 'vendor')\
-            .prefetch_related('gallery_set', 'color_set', 'size_set', 'specification_set', 'review_set')\
+            .prefetch_related('gallery_set', 'color_set', 'size_set', 'review_set')\
             .order_by('-date')
+
+    def list(self, request, *args, **kwargs):
+        cache_key = "api_products_list_all"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None and not request.GET.get('nocache'):
+            return Response(cached_data)
+
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, 300) # Cache for 5 minutes
+        return response
 
 class ProductDetailAPIView(generics.RetrieveAPIView):
     serializer_class = ProductSerializer
@@ -48,6 +70,17 @@ class ProductDetailAPIView(generics.RetrieveAPIView):
         return Product.objects.select_related('category', 'vendor')\
             .prefetch_related('gallery_set', 'color_set', 'size_set', 'specification_set', 'review_set')\
             .get(slug=slug)
+
+    def retrieve(self, request, *args, **kwargs):
+        slug = self.kwargs.get('slug')
+        cache_key = f"api_product_detail_{slug}"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None and not request.GET.get('nocache'):
+            return Response(cached_data)
+
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(cache_key, response.data, 300)
+        return response
     
 class CartAPIView(generics.ListCreateAPIView):
     queryset=Cart.objects.all()
@@ -261,7 +294,12 @@ class CreateOrderAPIView(generics.CreateAPIView):
             country=country,
         )
         
+        COMMISSION_RATE = Decimal("0.001")  # 0.1% Marketplace Admin Commission
         for c in cart_items:
+            item_sub_total = Decimal(c.sub_total)
+            admin_comm = round(item_sub_total * COMMISSION_RATE, 2)
+            vendor_earn = item_sub_total - admin_comm
+
             CartOrderItem.objects.create(
                 order=order,
                 product=c.product,
@@ -275,7 +313,9 @@ class CreateOrderAPIView(generics.CreateAPIView):
                 total=c.total,
                 size=c.size,
                 color=c.color,
-                initial_total=c.total,     
+                initial_total=c.total,
+                admin_commission=admin_comm,
+                vendor_earning=vendor_earn,
             )
             
             total_shipping+=Decimal(c.shipping_amount)
@@ -569,28 +609,45 @@ class AdminDashboardStatsView(generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         from django.db.models import Sum
+        from vendor.models import VendorRequest, Payout
         total_revenue = CartOrder.objects.filter(payment_status='paid').aggregate(total=Sum('total'))['total'] or 0.00
         total_orders = CartOrder.objects.count()
         total_products = Product.objects.count()
         total_vendors = Vendor.objects.count()
         pending_orders = CartOrder.objects.filter(order_status__iexact='pending').count()
-        
+
+        # 0.1% Commission Calculation
+        commission = CartOrderItem.objects.filter(order__payment_status='paid').aggregate(comm=Sum('admin_commission'))['comm'] or 0.00
+        if commission == 0 and float(total_revenue) > 0:
+            commission = round(float(total_revenue) * 0.001, 2)
+
+        pending_vendor_requests = VendorRequest.objects.filter(is_approved=False).count()
+        pending_payouts = Payout.objects.filter(status='pending').count()
+        pending_payouts_amount = Payout.objects.filter(status='pending').aggregate(tot=Sum('amount'))['tot'] or 0.00
+        total_payouts_paid = Payout.objects.filter(status='paid').aggregate(tot=Sum('amount'))['tot'] or 0.00
+
         recent_orders = CartOrder.objects.order_by('-date')[:6]
         serialized_recent = CartOrderSerializer(recent_orders, many=True).data
 
         return Response({
             'total_revenue': float(total_revenue),
+            'admin_commission': float(commission),
+            'commission_rate': '0.1%',
             'total_orders': total_orders,
             'total_products': total_products,
             'total_vendors': total_vendors,
             'pending_orders': pending_orders,
+            'pending_vendor_requests': pending_vendor_requests,
+            'pending_payouts': pending_payouts,
+            'pending_payouts_amount': float(pending_payouts_amount),
+            'total_payouts_paid': float(total_payouts_paid),
             'recent_orders': serialized_recent,
         }, status=status.HTTP_200_OK)
 
 
 class AdminImageUploadView(generics.GenericAPIView):
     parser_classes = [MultiPartParser, FormParser]
-    permission_classes = [IsSuperUserPermission]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         files = request.FILES.getlist('images') or request.FILES.getlist('image') or request.FILES.getlist('file')

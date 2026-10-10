@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { register } from "../../utils/auth";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../store/auth";
-import { Sparkles, User, Mail, Phone, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Sparkles, User, Mail, Phone, Lock, ArrowRight, Loader2, Store } from "lucide-react";
 import Swal from "sweetalert2";
 
 const Register = () => {
@@ -151,14 +151,42 @@ const Register = () => {
           </button>
         </form>
 
-        <div className="pt-4 border-t border-slate-100 text-center">
+        {/* Merchant / Seller Banner */}
+        <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+              <Store className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-emerald-950">Want to sell your products?</h3>
+              <p className="text-[11px] text-emerald-700">Open a store with 0.1% platform fee</p>
+            </div>
+          </div>
+          <Link
+            to="/vendor/register/"
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 text-decoration-none shadow-sm transition-all"
+          >
+            Seller Register →
+          </Link>
+        </div>
+
+        <div className="pt-4 border-t border-slate-100 text-center space-y-2">
           <p className="text-xs text-slate-500">
             Already have an account?{" "}
             <Link
               to="/login"
               className="font-bold text-indigo-600 hover:text-indigo-800 text-decoration-none"
             >
-              Sign In
+              Customer Sign In
+            </Link>
+          </p>
+          <p className="text-xs text-slate-500">
+            Already registered as a seller?{" "}
+            <Link
+              to="/vendor/login/"
+              className="font-bold text-emerald-600 hover:text-emerald-800 text-decoration-none"
+            >
+              Seller Sign In →
             </Link>
           </p>
         </div>

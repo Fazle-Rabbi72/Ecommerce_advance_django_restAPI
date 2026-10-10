@@ -73,6 +73,26 @@ export const CategoryItemSkeleton = () => {
   );
 };
 
+// Category card skeleton (Circular slider avatar matching modern design)
+export const CategoryCardSkeleton = () => {
+  return (
+    <div className="flex flex-col items-center text-center shrink-0 w-28 sm:w-32 md:w-36 py-1 space-y-2">
+      <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden bg-[#edf7ed] flex items-center justify-center p-3 sm:p-4">
+        <Skeleton
+          variant="circular"
+          width="100%"
+          height="100%"
+          animation="wave"
+          sx={{ bgcolor: "#d8edd9" }}
+        />
+      </div>
+      <Skeleton variant="text" width="70%" height={18} animation="wave" sx={{ bgcolor: "#f1f5f9" }} />
+      <Skeleton variant="text" width="45%" height={14} animation="wave" sx={{ bgcolor: "#f1f5f9" }} />
+    </div>
+  );
+};
+
+
 // Product detail page skeleton
 export const ProductDetailSkeleton = () => {
   return (

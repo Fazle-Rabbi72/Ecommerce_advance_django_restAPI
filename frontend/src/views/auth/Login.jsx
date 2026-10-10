@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { login } from "../../utils/auth";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../store/auth";
-import { Sparkles, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Sparkles, Mail, Lock, ArrowRight, Loader2, Store } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -103,7 +103,26 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="pt-4 border-t border-slate-100 text-center">
+        {/* Merchant / Vendor Portal Shortcut Banner */}
+        <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+              <Store className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-emerald-950">Marketplace Seller?</h3>
+              <p className="text-[11px] text-emerald-700">Access your Seller Central & inventory</p>
+            </div>
+          </div>
+          <Link
+            to="/vendor/login/"
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 text-decoration-none shadow-sm transition-all"
+          >
+            Seller Login →
+          </Link>
+        </div>
+
+        <div className="pt-4 border-t border-slate-100 text-center space-y-2">
           <p className="text-xs text-slate-500">
             Don&apos;t have an account yet?{" "}
             <Link
@@ -111,6 +130,15 @@ const Login = () => {
               className="font-bold text-indigo-600 hover:text-indigo-800 text-decoration-none"
             >
               Create Account
+            </Link>
+          </p>
+          <p className="text-xs text-slate-500">
+            Want to sell products on LuxeStore?{" "}
+            <Link
+              to="/vendor/register/"
+              className="font-bold text-emerald-600 hover:text-emerald-800 text-decoration-none"
+            >
+              Apply as a Seller / Vendor →
             </Link>
           </p>
         </div>

@@ -217,6 +217,10 @@ class CartOrderItem(models.Model):
     total=models.DecimalField(max_digits=12,decimal_places=2,default=0.00)
     country=models.CharField(max_length=100,null=True,blank=True)
     
+    # 0.1% Marketplace Commission System
+    admin_commission=models.DecimalField(max_digits=12,decimal_places=2,default=0.00)
+    vendor_earning=models.DecimalField(max_digits=12,decimal_places=2,default=0.00)
+    
     size=models.CharField(max_length=100,null=True,blank=True)
     color=models.CharField(max_length=100,null=True,blank=True)
     
