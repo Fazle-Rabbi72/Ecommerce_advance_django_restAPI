@@ -30,6 +30,7 @@ import VendorRegister from "./views/vendor/VendorRegister";
 import PrivateRoute from "./layout/PrivateRoute";
 import AdminRoute from "./layout/AdminRoute";
 import MainWrapper from "./layout/MainWrapper";
+import AIChatWidget from "./views/components/AIChatWidget";
 
 function App() {
   const hydrateUser = useAuthStore((state) => state.hydrateUser);
@@ -165,6 +166,7 @@ function App() {
             </div>
 
             <StoreFooter />
+            <AIChatWidget />
           </div>
         </MainWrapper>
       </BrowserRouter>

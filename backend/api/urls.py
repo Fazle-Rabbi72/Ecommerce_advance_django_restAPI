@@ -95,4 +95,8 @@ urlpatterns =[
     path('admin/orders/<str:order_oid>/status/', store_views.AdminOrderStatusUpdateView.as_view()),
     path('admin/payouts/', vendor_views.AdminPayoutListView.as_view()),
     path('admin/payouts/<int:pk>/status/', vendor_views.AdminPayoutStatusUpdateView.as_view()),
+
+    # AI RAG & Vector Assistant Endpoints
+    path('ai/chat/', store_views.AIChatAPIView.as_view(), name='ai-chat'),
+    path('ai/sync/', store_views.AISyncVectorAPIView.as_view(), name='ai-sync'),
 ]

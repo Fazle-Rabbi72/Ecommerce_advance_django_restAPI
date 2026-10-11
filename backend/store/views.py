@@ -1044,4 +1044,63 @@ class AdminOrderStatusUpdateView(generics.GenericAPIView):
             'order_oid': order.oid,
             'order_status': order.order_status,
             'payment_status': order.payment_status
-        }, status=status.HTTP_200_OK)
+        }, status=status.HTTP_200_OK)
+
+
+from store.ai_assistant import ai_service, vector_store
+
+
+class AIChatAPIView(generics.GenericAPIView):
+    """
+    Public conversational customer support endpoint powered by Vector RAG + Gemini 1.5.
+    Accepts customer messages in English, Bengali, or Banglish.
+    Returns intelligent salesperson response + recommended product cards.
+    """
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    def post(self, request, *args, **kwargs):
+        user_message = request.data.get("message", "").strip()
+        history = request.data.get("history", [])
+
+        if not user_message:
+            return Response(
+                {"error": "Message cannot be empty."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            result = ai_service.generate_response(user_message, conversation_history=history)
+            return Response({
+                "status": "success",
+                "reply": result.get("reply", ""),
+                "products": result.get("products", []),
+                "language": result.get("language", "english")
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "message": f"AI Assistant could not process message: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AISyncVectorAPIView(generics.GenericAPIView):
+    """
+    Sync all active store products into the Vector Database.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            count = vector_store.index_all()
+            return Response({
+                "status": "success",
+                "indexed_count": count,
+                "message": f"Successfully indexed {count} products in Vector Database."
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "message": f"Vector indexing failed: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
