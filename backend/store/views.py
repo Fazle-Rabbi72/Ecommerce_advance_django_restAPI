@@ -1075,7 +1075,9 @@ class AIChatAPIView(generics.GenericAPIView):
                 "status": "success",
                 "reply": result.get("reply", ""),
                 "products": result.get("products", []),
-                "language": result.get("language", "english")
+                "language": result.get("language", "english"),
+                "latency_ms": result.get("latency_ms", 0),
+                "cached": result.get("cached", False)
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
@@ -1086,7 +1088,7 @@ class AIChatAPIView(generics.GenericAPIView):
 
 class AISyncVectorAPIView(generics.GenericAPIView):
     """
-    Sync all active store products into the Vector Database.
+    Sync all active store products, vendors, and policies into the Vector Database.
     """
     permission_classes = [AllowAny]
 
@@ -1096,7 +1098,7 @@ class AISyncVectorAPIView(generics.GenericAPIView):
             return Response({
                 "status": "success",
                 "indexed_count": count,
-                "message": f"Successfully indexed {count} products in Vector Database."
+                "message": f"Successfully indexed {count} items (products, vendors, policies) in Vector Database."
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({

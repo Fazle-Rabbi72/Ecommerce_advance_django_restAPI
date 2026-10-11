@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, BrowserRouter } from "react-router-dom";
+import { Routes, Route, BrowserRouter, Navigate } from "react-router-dom";
 import "./App.css";
 import Login from "./views/auth/Login";
 import Register from "./views/auth/Register";
@@ -28,6 +28,7 @@ import VendorDashboard from "./views/vendor/VendorDashboard";
 import VendorLogin from "./views/vendor/VendorLogin";
 import VendorRegister from "./views/vendor/VendorRegister";
 import PrivateRoute from "./layout/PrivateRoute";
+import VendorRoute from "./layout/VendorRoute";
 import AdminRoute from "./layout/AdminRoute";
 import MainWrapper from "./layout/MainWrapper";
 import AIChatWidget from "./views/components/AIChatWidget";
@@ -72,10 +73,21 @@ function App() {
                 <Route path="/" element={<Products />} />
                 <Route path="/detail/:slug/" element={<ProductDetail />} />
                 <Route path="/cart/" element={<Cart />} />
-                <Route path="/checkout/:order_oid/" element={<Checkout />} />
+                <Route
+                  path="/checkout/:order_oid/"
+                  element={
+                    <PrivateRoute>
+                      <Checkout />
+                    </PrivateRoute>
+                  }
+                />
                 <Route
                   path="/payment-success/:order_oid/"
-                  element={<PaymentSuccess />}
+                  element={
+                    <PrivateRoute>
+                      <PaymentSuccess />
+                    </PrivateRoute>
+                  }
                 />
                 <Route path="/search/" element={<Search />} />
 
@@ -85,7 +97,14 @@ function App() {
                 <Route path="/logout" element={<Logout />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/create-new-password" element={<CreatePassword />} />
-                <Route path="/dashboard" element={<Dashboard />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                />
 
                 {/* Customer Protected Routes */}
                 <Route
@@ -127,27 +146,51 @@ function App() {
                 <Route path="/vendor/register/" element={<VendorRegister />} />
                 <Route path="/vendor-register/" element={<VendorRegister />} />
 
-                {/* Vendor / Seller Dashboard Routes */}
+                {/* Vendor / Seller Dashboard Routes (Vendor Only) */}
                 <Route
                   path="/vendor/dashboard/"
                   element={
-                    <PrivateRoute>
+                    <VendorRoute>
                       <VendorDashboard />
-                    </PrivateRoute>
+                    </VendorRoute>
+                  }
+                />
+                <Route
+                  path="/vendor/dashboard"
+                  element={
+                    <VendorRoute>
+                      <VendorDashboard />
+                    </VendorRoute>
                   }
                 />
                 <Route
                   path="/vendor-dashboard/"
                   element={
-                    <PrivateRoute>
+                    <VendorRoute>
                       <VendorDashboard />
-                    </PrivateRoute>
+                    </VendorRoute>
+                  }
+                />
+                <Route
+                  path="/vendor-dashboard"
+                  element={
+                    <VendorRoute>
+                      <VendorDashboard />
+                    </VendorRoute>
                   }
                 />
 
                 {/* Admin Portal Route (Superuser Only) */}
                 <Route
                   path="/admin-dashboard/"
+                  element={
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin-dashboard"
                   element={
                     <AdminRoute>
                       <AdminDashboard />
@@ -162,6 +205,17 @@ function App() {
                     </AdminRoute>
                   }
                 />
+                <Route
+                  path="/admin/dashboard"
+                  element={
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  }
+                />
+
+                {/* 404 Fallback Route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
 

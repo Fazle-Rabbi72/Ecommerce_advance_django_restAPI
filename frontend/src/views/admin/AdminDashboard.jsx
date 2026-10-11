@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import apiInstance from "../../utils/axios";
 import UserData from "../plugin/UserData";
 import { showToast } from "../../utils/toast";
@@ -747,36 +747,9 @@ const AdminDashboard = () => {
     }
   };
 
-  // If user is not superuser, render Access Denied Screen
+  // If user is not superuser, redirect to home
   if (!isSuperUser) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-slate-100">
-        <div className="max-w-md w-full bg-slate-900 border border-rose-500/30 rounded-3xl p-8 text-center space-y-6 shadow-2xl relative overflow-hidden">
-          <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto shadow-inner">
-            <ShieldAlert className="w-10 h-10" />
-          </div>
-          <div className="space-y-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1 rounded-full">
-              Superuser Restricted
-            </span>
-            <h1 className="text-2xl font-black text-white tracking-tight">
-              Access Restricted
-            </h1>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              You must be logged in as a <strong>Superuser</strong> to access the Admin Control Center.
-            </p>
-          </div>
-          <div className="pt-2">
-            <Link
-              to="/"
-              className="inline-block px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all text-decoration-none shadow-md shadow-indigo-600/30"
-            >
-              Back to Storefront
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
   // Filtered lists

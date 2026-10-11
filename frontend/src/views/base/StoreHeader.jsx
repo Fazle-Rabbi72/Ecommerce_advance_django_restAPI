@@ -84,6 +84,7 @@ const StoreHeader = () => {
   };
 
   const isAdmin = Boolean(user?.is_superuser);
+  const isVendor = Boolean(user?.vendor_id && Number(user.vendor_id) > 0);
 
   return (
     <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-xl border-b border-slate-200/70 shadow-xs transition-all">
@@ -199,15 +200,17 @@ const StoreHeader = () => {
               </Link>
             </nav>
 
-            {/* Seller Portal Shortcut */}
-            <Link
-              to="/vendor/dashboard/"
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold transition-all text-decoration-none shadow-sm"
-              title="Seller & Vendor Dashboard"
-            >
-              <Store className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Seller Portal</span>
-            </Link>
+            {/* Seller Portal Shortcut (Vendors Only) */}
+            {isVendor && (
+              <Link
+                to="/vendor/dashboard/"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold transition-all text-decoration-none shadow-sm"
+                title="Seller & Vendor Dashboard"
+              >
+                <Store className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Seller Portal</span>
+              </Link>
+            )}
 
             {/* Admin Hub Shortcut */}
             {isAdmin && (
@@ -293,13 +296,23 @@ const StoreHeader = () => {
                           Admin Dashboard
                         </Link>
                       )}
-                      <Link
-                        to="/vendor/dashboard/"
-                        className="flex items-center gap-2.5 px-4 py-2 font-bold text-emerald-600 hover:bg-emerald-50 text-decoration-none transition-colors"
-                      >
-                        <Store className="w-4 h-4 text-emerald-600" />
-                        Seller Dashboard
-                      </Link>
+                      {isVendor ? (
+                        <Link
+                          to="/vendor/dashboard/"
+                          className="flex items-center gap-2.5 px-4 py-2 font-bold text-emerald-600 hover:bg-emerald-50 text-decoration-none transition-colors"
+                        >
+                          <Store className="w-4 h-4 text-emerald-600" />
+                          Seller Dashboard
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/vendor/register/"
+                          className="flex items-center gap-2.5 px-4 py-2 font-medium text-emerald-700 hover:bg-emerald-50 text-decoration-none transition-colors"
+                        >
+                          <Store className="w-4 h-4 text-emerald-600" />
+                          Become a Seller
+                        </Link>
+                      )}
                       <Link
                         to="/customer/account/"
                         className="flex items-center gap-2.5 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600 text-decoration-none transition-colors"
@@ -413,13 +426,23 @@ const StoreHeader = () => {
               >
                 Live Order Tracking
               </Link>
-              <Link
-                to="/vendor/dashboard/"
-                className="px-3.5 py-2.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-decoration-none flex items-center gap-2"
-              >
-                <Store className="w-4 h-4 text-emerald-600" />
-                Seller Dashboard Portal
-              </Link>
+              {isVendor ? (
+                <Link
+                  to="/vendor/dashboard/"
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-decoration-none flex items-center gap-2"
+                >
+                  <Store className="w-4 h-4 text-emerald-600" />
+                  Seller Dashboard Portal
+                </Link>
+              ) : (
+                <Link
+                  to="/vendor/register/"
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-decoration-none flex items-center gap-2"
+                >
+                  <Store className="w-4 h-4 text-emerald-600" />
+                  Become a Seller
+                </Link>
+              )}
               {isAdmin && (
                 <Link
                   to="/admin-dashboard/"
