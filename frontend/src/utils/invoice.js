@@ -1,6 +1,6 @@
 /**
  * Utility to generate and download/print an official, high-resolution PDF invoice
- * for any order in LuxeStore.
+ * for any order in AxuraShop.
  */
 export const downloadInvoice = (order) => {
   if (!order) return;
@@ -243,8 +243,8 @@ export const downloadInvoice = (order) => {
 
           <div class="header">
             <div>
-              <div class="brand-logo">LUXESTORE</div>
-              <div class="brand-tagline">Curated Luxury Lifestyle & Essentials</div>
+              <div class="brand-logo">AXURASHOP</div>
+              <div class="brand-tagline">Next-Gen Multi-Vendor Commerce Platform</div>
             </div>
             <div class="invoice-meta">
               <h1 class="invoice-title">TAX INVOICE</h1>
@@ -309,8 +309,8 @@ export const downloadInvoice = (order) => {
           </div>
 
           <div class="footer">
-            <p>Thank you for shopping with LuxeStore. For assistance, contact support@luxestore.com.</p>
-            <p>© ${new Date().getFullYear()} LuxeStore Inc. All rights reserved.</p>
+            <p>Thank you for shopping with AxuraShop. For assistance, contact support@axurashop.com.</p>
+            <p>© ${new Date().getFullYear()} AxuraShop Inc. All rights reserved.</p>
           </div>
         </div>
 

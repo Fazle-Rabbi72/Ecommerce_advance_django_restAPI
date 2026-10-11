@@ -75,7 +75,7 @@ const Sidebar = () => {
             {profile.full_name || user_data?.full_name || "Customer Account"}
           </h2>
           <p className="text-xs text-slate-400 truncate max-w-[200px] mx-auto">
-            {profile.email || user_data?.email || "customer@luxestore.com"}
+            {profile.email || user_data?.email || "customer@axurashop.com"}
           </p>
         </div>
 

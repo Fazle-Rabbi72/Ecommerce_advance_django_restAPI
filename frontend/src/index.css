@@ -5,23 +5,63 @@
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --primary: #4f46e5;
   --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
   --secondary: #0ea5e9;
   --accent: #f59e0b;
   --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  
+  /* Status Palette Tokens */
+  --status-pending-bg: #fffbeb;
+  --status-pending-text: #b45309;
+  --status-pending-border: #fde68a;
+  --status-processing-bg: #eef2ff;
+  --status-processing-text: #4338ca;
+  --status-processing-border: #c7d2fe;
+  --status-shipped-bg: #f0fdf4;
+  --status-shipped-text: #15803d;
+  --status-shipped-border: #bbf7d0;
+  --status-delivered-bg: #ecfdf5;
+  --status-delivered-text: #047857;
+  --status-delivered-border: #a7f3d0;
+  --status-cancelled-bg: #fef2f2;
+  --status-cancelled-text: #b91c1c;
+  --status-cancelled-border: #fecaca;
+  --status-refunded-bg: #fdf4ff;
+  --status-refunded-text: #86198f;
+  --status-refunded-border: #f5d0fe;
+
+  /* Layout and Accessibility Tokens */
+  --min-touch-target: 44px;
+  --mobile-bottom-nav-height: 64px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   font-family: var(--font-sans);
   background-color: #f8fafc;
   color: #0f172a;
   min-height: 100vh;
   margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  max-width: 100vw;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  overflow-x: hidden;
+  max-width: 100vw;
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
 }
 
 /* Custom Scrollbar */

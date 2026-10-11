@@ -11,7 +11,9 @@ function GetCurrentAddress() {
         cachedAddress = JSON.parse(stored);
         return cachedAddress;
       }
-    } catch (e) {}
+    } catch (_e) {
+      /* ignore storage error */
+    }
     return {
       country: "United States",
       city: "New York",
@@ -37,7 +39,9 @@ function GetCurrentAddress() {
                   "cached_user_address",
                   JSON.stringify(data.address)
                 );
-              } catch (e) {}
+              } catch (_e) {
+      /* ignore storage error */
+    }
             }
           })
           .catch((err) => {

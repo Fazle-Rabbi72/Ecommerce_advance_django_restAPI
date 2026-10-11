@@ -17,6 +17,7 @@ from store.serializers import (
 from userauths.serializer import ProfileSerializer
 
 from rest_framework import generics, status
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
@@ -205,35 +206,110 @@ class CouponListCreateAPIView(generics.ListCreateAPIView):
     def get_queryset(self):
         vendor_id=self.kwargs['vendor_id']
         vendor= Vendor.objects.get(id=vendor_id)
-        
-        return Coupon.objects.filter(vendor=vendor)
+        return Coupon.objects.filter(vendor=vendor).order_by('-date')
+
     def create(self, request, *args, **kwargs):
         payload=request.data
-        vendor_id =payload['vendor_id']
-        code =payload['code']
-        discount=payload['discount']
-        active= payload['active']
+        vendor_id = payload.get('vendor_id') or self.kwargs.get('vendor_id')
+        code = str(payload.get('code', '')).strip().upper()
+        discount = payload.get('discount')
+        active = payload.get('active', True)
         
-        vendor= Vendor.objects.get(id=vendor_id)
-        Coupon.objects.create(
+        if not code:
+            return Response({"message": "Coupon code is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if discount is None or discount == "":
+            return Response({"message": "Discount percentage is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            discount = int(discount)
+            if discount < 1 or discount > 100:
+                return Response({"message": "Discount must be between 1% and 100%"}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({"message": "Invalid discount value. Please enter a percentage between 1 and 100."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            vendor = Vendor.objects.get(id=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({"message": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if code already exists for this vendor
+        existing = Coupon.objects.filter(vendor=vendor, code__iexact=code).first()
+        if existing:
+            return Response({"message": f"A coupon with code '{code}' already exists for your store"}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_active = (str(active).strip().lower() in ['true', '1', 'yes']) if not isinstance(active, bool) else active
+
+        coupon = Coupon.objects.create(
             vendor=vendor,
             code=code,
             discount=discount,
-            active=(active.lower()=="true")
+            active=is_active
         )
-        return Response({"message":"Coupon created successfully"},status=status.HTTP_201_CREATED)
+        return Response({
+            "message": "Coupon created successfully",
+            "coupon": CouponSerializer(coupon).data
+        }, status=status.HTTP_201_CREATED)
 
 
-class CouponDetailAPIView(generics.RetrieveUpdateAPIView):
+class CouponDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class=CouponSerializer
     permission_classes=[AllowAny]
     
     def get_object(self):
         vendor_id=self.kwargs['vendor_id']
         coupon_id=self.kwargs['coupon_id']
-        
         vendor=Vendor.objects.get(id=vendor_id)
         return Coupon.objects.get(vendor=vendor, id=coupon_id)
+
+    def update(self, request, *args, **kwargs):
+        coupon = self.get_object()
+        payload = request.data
+        if 'code' in payload and payload['code']:
+            code = str(payload['code']).strip().upper()
+            conflict = Coupon.objects.filter(vendor=coupon.vendor, code__iexact=code).exclude(id=coupon.id).first()
+            if conflict:
+                return Response({"message": f"Coupon code '{code}' already exists"}, status=status.HTTP_400_BAD_REQUEST)
+            coupon.code = code
+        if 'discount' in payload and payload['discount'] is not None:
+            try:
+                discount = int(payload['discount'])
+                if 1 <= discount <= 100:
+                    coupon.discount = discount
+            except (ValueError, TypeError):
+                pass
+        if 'active' in payload:
+            active = payload['active']
+            coupon.active = (str(active).strip().lower() in ['true', '1', 'yes']) if not isinstance(active, bool) else active
+        coupon.save()
+        return Response({
+            "message": "Coupon updated successfully",
+            "coupon": CouponSerializer(coupon).data
+        }, status=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        coupon = self.get_object()
+        code = coupon.code
+        coupon.delete()
+        return Response({"message": f"Coupon '{code}' deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class VendorCouponToggleStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, vendor_id, coupon_id):
+        try:
+            vendor = Vendor.objects.get(id=vendor_id)
+            coupon = Coupon.objects.get(vendor=vendor, id=coupon_id)
+            coupon.active = not coupon.active
+            coupon.save()
+            status_text = "activated" if coupon.active else "deactivated"
+            return Response({
+                "message": f"Coupon '{coupon.code}' {status_text} successfully",
+                "active": coupon.active,
+                "coupon": CouponSerializer(coupon).data
+            }, status=status.HTTP_200_OK)
+        except (Vendor.DoesNotExist, Coupon.DoesNotExist):
+            return Response({"message": "Coupon not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class CouponStatsAPIView(generics.ListAPIView):
     serializer_class=CouponSummarySerializer

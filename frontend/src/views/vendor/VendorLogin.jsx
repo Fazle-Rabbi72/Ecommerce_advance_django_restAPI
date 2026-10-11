@@ -29,7 +29,7 @@ const VendorLogin = () => {
     if (isLoggedIn) {
       apiInstance
         .get("vendor/me/")
-        .then((res) => {
+        .then(() => {
           navigate("/vendor/dashboard/");
         })
         .catch(() => {

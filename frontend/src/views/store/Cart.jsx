@@ -33,9 +33,7 @@ const Cart = () => {
   const [productQuantity, setProductQuantity] = useState({});
   const [loading, setLoading] = useState(true);
   const [creatingOrder, setCreatingOrder] = useState(false);
-  const [couponCode, setCouponCode] = useState("");
-  const [applyingCoupon, setApplyingCoupon] = useState(false);
-  const [couponDiscount, setCouponDiscount] = useState(0);
+
 
   const userData = UserData();
   const cart_id = CardID();
@@ -52,7 +50,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const cartContextVal = useContext(CartContext);
   const setCartCount = useMemo(
-    () => (Array.isArray(cartContextVal) ? cartContextVal[1] : () => {}),
+    () => (Array.isArray(cartContextVal) ? cartContextVal[1] : () => { }),
     [cartContextVal]
   );
 
@@ -151,7 +149,7 @@ const Cart = () => {
 
       await apiInstance.post("cart-view/", formData);
       await Promise.all([fetchCartData(), fetchCartTotal()]);
-    } catch (err) {
+    } catch (_err) {
       showToast.error("Failed to update item quantity");
       fetchCartData();
     }
@@ -167,37 +165,11 @@ const Cart = () => {
       await apiInstance.delete(url);
       showToast.info("Item removed from cart");
       await Promise.all([fetchCartData(), fetchCartTotal()]);
-    } catch (err) {
+    } catch (_err) {
       showToast.error("Could not remove item");
     }
   };
 
-  // Apply Coupon
-  const handleApplyCoupon = async (e) => {
-    e.preventDefault();
-    if (!couponCode.trim()) return;
-    setApplyingCoupon(true);
-
-    try {
-      const res = await apiInstance.post("coupon/", {
-        code: couponCode.trim(),
-        cart_id: cart_id,
-        user_id: userData?.user_id || 0,
-      });
-
-      if (res.data?.discount) {
-        setCouponDiscount(Number(res.data.discount));
-        showToast.success(`Coupon "${couponCode}" applied: $${res.data.discount} discount!`);
-      } else {
-        showToast.info("Coupon validated successfully");
-      }
-      fetchCartTotal();
-    } catch (err) {
-      showToast.error(err.response?.data?.message || "Invalid or expired promo code");
-    } finally {
-      setApplyingCoupon(false);
-    }
-  };
 
   // Create Order & Checkout
   const handleCreateOrder = async (e) => {
@@ -246,7 +218,7 @@ const Cart = () => {
   const subTotal = Number(cartTotal.sub_total || 0);
   const shippingTotal = Number(cartTotal.shipping || 0);
   const taxTotal = Number(cartTotal.tax || 0);
-  const finalTotal = Math.max(0, Number(cartTotal.total || (subTotal + shippingTotal + taxTotal)) - couponDiscount);
+  const finalTotal = Number(cartTotal.total || (subTotal + shippingTotal + taxTotal));
 
   // Free shipping threshold logic ($99)
   const freeShippingThreshold = 99;
@@ -544,27 +516,12 @@ const Cart = () => {
 
           {/* RIGHT: ORDER SUMMARY & CHECKOUT */}
           <div className="lg:col-span-4 space-y-6 sticky top-28">
-            {/* Promo Code Card */}
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-3">
-              <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider">
-                <Tag className="w-3.5 h-3.5 text-indigo-600" /> Have a Promo Code?
-              </h4>
-              <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. LUXE2026"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono uppercase focus:outline-none focus:border-indigo-500"
-                />
-                <button
-                  type="submit"
-                  disabled={applyingCoupon || !couponCode.trim()}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold rounded-xl transition-all"
-                >
-                  Apply
-                </button>
-              </form>
+            {/* Promo Code Notice */}
+            <div className="bg-indigo-50/70 border border-indigo-100/90 rounded-2xl p-4 flex items-start gap-3">
+              <Tag className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+              <div className="text-xs text-slate-700 leading-relaxed">
+                <span className="font-bold text-indigo-950">Have a promo code?</span> You can apply store coupons directly during Checkout before making payment.
+              </div>
             </div>
 
             {/* Financial Breakdown Card */}
@@ -595,12 +552,7 @@ const Cart = () => {
                   <span className="font-bold text-slate-900">${taxTotal.toFixed(2)}</span>
                 </div>
 
-                {couponDiscount > 0 && (
-                  <div className="flex justify-between text-emerald-600 font-bold">
-                    <span>Coupon Discount</span>
-                    <span>-${couponDiscount.toFixed(2)}</span>
-                  </div>
-                )}
+
 
                 <div className="border-t border-slate-200/80 pt-4 flex justify-between items-baseline">
                   <span className="text-sm font-extrabold text-slate-900">Total Due</span>

@@ -109,7 +109,7 @@ const Products = () => {
           setLoading(false);
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // Storage unavailable or invalid
     }
 
@@ -122,7 +122,9 @@ const Products = () => {
           setLoading(false);
           try {
             sessionStorage.setItem("cached_amazon_products_v3", JSON.stringify(list));
-          } catch (e) { }
+          } catch (_e) {
+            /* ignore storage quota */
+          }
         }
       })
       .catch((err) => {
@@ -146,7 +148,9 @@ const Products = () => {
           setCategoriesLoading(false);
         }
       }
-    } catch (e) { }
+    } catch (_e) {
+      /* ignore storage quota */
+    }
 
     apiInstance
       .get("category/")
@@ -157,7 +161,9 @@ const Products = () => {
           setCategoriesLoading(false);
           try {
             sessionStorage.setItem("cached_amazon_categories_v3", JSON.stringify(list));
-          } catch (e) { }
+          } catch (_e) {
+            /* ignore storage quota */
+          }
         }
       })
       .catch((err) => {
@@ -190,14 +196,14 @@ const Products = () => {
     };
   }, [userData?.user_id]);
 
-  const handleColorSelect = (productId, colorName) => {
+  const _handleColorSelect = (productId, colorName) => {
     setSelectedColors((prev) => ({
       ...prev,
       [productId]: colorName,
     }));
   };
 
-  const handleSizeSelect = (productId, sizeName) => {
+  const _handleSizeSelect = (productId, sizeName) => {
     setSelectedSizes((prev) => ({
       ...prev,
       [productId]: sizeName,
@@ -229,7 +235,7 @@ const Products = () => {
     }
 
     try {
-      const res = await apiInstance.post(`customer/wishlist/${userData.user_id}/`, {
+      await apiInstance.post(`customer/wishlist/${userData.user_id}/`, {
         product_id: productId,
         user_id: userData.user_id,
       });
@@ -243,7 +249,7 @@ const Products = () => {
         }
         return { ...prev, [productId]: next };
       });
-    } catch (err) {
+    } catch (_err) {
       showToast.error("Could not update Wishlist");
     }
   };
@@ -327,11 +333,15 @@ const Products = () => {
       }
     }
 
-    // Smooth scroll down to products section
-    const target = document.getElementById("products-section");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    // Smooth scroll down to products section with sticky header offset
+    setTimeout(() => {
+      const target = document.getElementById("products-section");
+      if (target) {
+        const headerOffset = 90;
+        const targetY = target.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+        window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+      }
+    }, 60);
   };
 
   const scrollCategories = (direction) => {
@@ -425,10 +435,14 @@ const Products = () => {
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages && newPage !== validCurrentPage) {
       setCurrentPage(newPage);
-      const el = document.getElementById("products-section");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      setTimeout(() => {
+        const el = document.getElementById("products-section");
+        if (el) {
+          const headerOffset = 90;
+          const targetY = el.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+          window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+        }
+      }, 60);
     }
   };
 
@@ -454,23 +468,33 @@ const Products = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.18),transparent_55%)]" />
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
           <div className="lg:col-span-8 space-y-3.5">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-400/20 text-indigo-300 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md">
-              <Flame className="w-3 h-3 text-amber-400" />
-              <span>Amazon Prime Equivalent Fast Delivery Included</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md">
+              <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse" />
+              <span>AxuraShop Official • Prime Express Delivery</span>
             </div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight leading-snug">
-              Premium Marketplace &{" "}
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight leading-snug">
+              Welcome to{" "}
               <span className="bg-gradient-to-r from-indigo-300 via-sky-200 to-indigo-100 bg-clip-text text-transparent">
-                Exclusive Deals
-              </span>
+                AxuraShop
+              </span>{" "}
+              Marketplace
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl font-normal leading-relaxed">
-              Shop millions of verified products from global brand partners. Guaranteed next-day delivery, seamless 30-day hassle-free returns, and live dispatch tracking.
+              Shop millions of verified products from global brand partners on AxuraShop. Guaranteed next-day delivery, seamless 30-day hassle-free returns, and live tracking.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <a
                 href="#products-section"
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition-all hover:scale-[1.02] text-decoration-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const target = document.getElementById("products-section");
+                  if (target) {
+                    const headerOffset = 90;
+                    const targetY = target.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+                    window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+                  }
+                }}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-xs shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition-all hover:scale-[1.02] text-decoration-none cursor-pointer"
               >
                 <span>Explore All Products</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -546,24 +570,26 @@ const Products = () => {
 
         {/* Carousel Container with Floating Edge Arrows */}
         <div className="relative group/slider">
-          {/* Floating Left Arrow */}
+          {/* Floating Left Arrow (Visible on tablet/desktop, mobile uses native touch swipe) */}
           <button
             type="button"
             onClick={() => scrollCategories("left")}
-            className="flex absolute -left-2 sm:-left-3.5 top-12 sm:top-14 md:top-16 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md hover:shadow-lg text-slate-700 hover:text-emerald-600 hover:border-emerald-300 items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
+            className="hidden sm:flex absolute -left-3 sm:-left-3.5 top-12 sm:top-14 md:top-16 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md hover:shadow-lg text-slate-700 hover:text-emerald-600 hover:border-emerald-300 items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
             aria-label="Previous categories"
             title="Scroll left"
+            style={{ borderRadius: "9999px" }}
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          {/* Floating Right Arrow */}
+          {/* Floating Right Arrow (Visible on tablet/desktop, mobile uses native touch swipe) */}
           <button
             type="button"
             onClick={() => scrollCategories("right")}
-            className="flex absolute -right-2 sm:-right-3.5 top-12 sm:top-14 md:top-16 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md hover:shadow-lg text-slate-700 hover:text-emerald-600 hover:border-emerald-300 items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
+            className="hidden sm:flex absolute -right-3 sm:-right-3.5 top-12 sm:top-14 md:top-16 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md hover:shadow-lg text-slate-700 hover:text-emerald-600 hover:border-emerald-300 items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
             aria-label="Next categories"
             title="Scroll right"
+            style={{ borderRadius: "9999px" }}
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -912,9 +938,9 @@ const Products = () => {
             </div>
           </div>
 
-          {/* Product Cards Grid: Ultra-responsive 1 -> 2 -> 3 -> 4 -> 5 -> 6 columns */}
+          {/* Product Cards Grid: Ultra-responsive 2 cols on mobile -> 3 -> 4 -> 5 -> 6 columns */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4k:grid-cols-6 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4k:grid-cols-6 gap-3 sm:gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                 <ProductCardSkeleton key={n} />
               ))}
@@ -941,7 +967,7 @@ const Products = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4k:grid-cols-6 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4k:grid-cols-6 gap-3 sm:gap-6">
               {paginatedProducts.map((p) => {
                 const currentQty = selectedQuantities[p.id] || 1;
                 const isWishlisted = Boolean(wishlist[p.id]);
@@ -963,7 +989,7 @@ const Products = () => {
                 return (
                   <div
                     key={p.id}
-                    className="group relative bg-white rounded-3xl border border-slate-200/80 hover:border-indigo-500/40 p-4 sm:p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] hover:shadow-[0_22px_45px_-12px_rgba(79,70,229,0.14)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden"
+                    className="group relative bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 hover:border-indigo-500/40 p-3 sm:p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] hover:shadow-[0_22px_45px_-12px_rgba(79,70,229,0.14)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1.5 overflow-hidden"
                   >
                     {/* Top ambient hover accent line */}
                     <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -1036,7 +1062,7 @@ const Products = () => {
                         to={`/detail/${p?.slug}/`}
                         className="block group/title text-decoration-none"
                       >
-                        <h5 className="text-[9.5px] sm:text-[10px] font-semibold text-slate-700 group-hover/title:text-indigo-600 transition-colors line-clamp-2 mb-1 leading-snug tracking-tight">
+                        <h5 className="text-[11px] sm:text-xs md:text-sm font-bold text-slate-800 group-hover/title:text-indigo-600 transition-colors line-clamp-2 mb-1.5 leading-snug tracking-tight">
                           {p?.title}
                         </h5>
                       </Link>
@@ -1053,9 +1079,9 @@ const Products = () => {
                       </div>
 
                       {/* Price & Stock Status */}
-                      <div className="flex items-baseline justify-between mb-3">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-black text-slate-900 tracking-tight">
+                      <div className="flex flex-wrap items-baseline justify-between gap-1 mb-3">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-base sm:text-xl font-black text-slate-900 tracking-tight">
                             ${Number(p?.price).toFixed(2)}
                           </span>
                           {p?.old_price && Number(p?.old_price) > Number(p?.price) && (
@@ -1083,42 +1109,48 @@ const Products = () => {
                       </div>
                     </div>
 
-                    {/* Card Actions: Stepper & Luxury Add to Cart Button with ONLY Cart Icon */}
+                    {/* Card Actions: Stepper & Luxury Add to Cart Button */}
                     <div className="pt-3 border-t border-slate-100/80 mt-auto">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 w-full">
                         {/* Stepper */}
                         {inStock && (
-                          <div className="flex items-center bg-slate-50 border border-slate-200/80 rounded-2xl p-1 shrink-0 shadow-xs">
+                          <div
+                            className="flex items-center bg-slate-100/90 border border-slate-200/80 rounded-full p-0.5 shrink-0 shadow-xs"
+                            style={{ borderRadius: "9999px" }}
+                          >
                             <button
                               type="button"
                               onClick={() => handleQuantityAdjust(p.id, -1)}
-                              className="w-7 h-7 flex items-center justify-center rounded-xl bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 shadow-xs active:scale-90 transition-all"
+                              className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs active:scale-90 transition-all cursor-pointer"
                               aria-label="Decrease quantity"
+                              style={{ borderRadius: "9999px" }}
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-2.5 h-2.5" />
                             </button>
-                            <span className="w-6 text-center text-xs font-black text-slate-900">
+                            <span className="w-5 text-center text-xs font-black text-slate-900 select-none">
                               {currentQty}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleQuantityAdjust(p.id, 1)}
-                              className="w-7 h-7 flex items-center justify-center rounded-xl bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 shadow-xs active:scale-90 transition-all"
+                              className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs active:scale-90 transition-all cursor-pointer"
                               aria-label="Increase quantity"
+                              style={{ borderRadius: "9999px" }}
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-2.5 h-2.5" />
                             </button>
                           </div>
                         )}
 
-                        {/* Luxury Add to Cart Button (Only Cart Icon) */}
+                        {/* Luxury Add to Cart Button */}
                         <button
                           type="button"
                           onClick={() => handleAddToCart(p)}
                           disabled={isAdding || !inStock}
                           title={!inStock ? "Out of Stock" : "Add to Cart"}
                           aria-label="Add to Cart"
-                          className={`flex-1 h-10 rounded-2xl font-bold flex items-center justify-center transition-all duration-300 active:scale-95 ${!inStock
+                          style={{ borderRadius: "9999px" }}
+                          className={`flex-1 h-9 rounded-full font-bold flex items-center justify-center gap-1.5 transition-all duration-300 active:scale-95 cursor-pointer ${!inStock
                             ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                             : isAdding
                               ? "bg-indigo-600 text-white cursor-wait shadow-lg shadow-indigo-600/30"
@@ -1126,11 +1158,14 @@ const Products = () => {
                             }`}
                         >
                           {isAdding ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           ) : !inStock ? (
-                            <span className="text-[11px] font-bold text-slate-400">Out of Stock</span>
+                            <span className="text-[10px] font-bold text-slate-400">Sold Out</span>
                           ) : (
-                            <ShoppingCart className="w-4.5 h-4.5 transition-transform group-hover/cartbtn:scale-115 group-hover/cartbtn:-rotate-6" />
+                            <>
+                              <ShoppingCart className="w-3.5 h-3.5 transition-transform group-hover/cartbtn:scale-110" />
+                              <span className="text-[11px] font-bold hidden sm:inline">Add</span>
+                            </>
                           )}
                         </button>
                       </div>
@@ -1141,9 +1176,9 @@ const Products = () => {
             </div>
           )}
 
-          {/* AMAZON-STYLE MODERN PAGINATION COMPONENT */}
+          {/* MODERN PAGINATION COMPONENT - FULLY ROUNDED */}
           {totalPages > 1 && (
-            <div className="mt-8 pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="mt-8 pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs">
               <div className="text-xs font-semibold text-slate-500 order-2 sm:order-1">
                 Showing <span className="font-bold text-slate-900">{totalItems > 0 ? startIndex + 1 : 0}–{endIndex}</span> of{" "}
                 <span className="font-bold text-slate-900">{totalItems}</span> products
@@ -1155,7 +1190,8 @@ const Products = () => {
                   type="button"
                   onClick={() => handlePageChange(validCurrentPage - 1)}
                   disabled={validCurrentPage === 1}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${validCurrentPage === 1
+                  style={{ borderRadius: "9999px" }}
+                  className={`flex items-center gap-1 px-3.5 py-2 rounded-full text-xs font-bold border transition-all cursor-pointer ${validCurrentPage === 1
                     ? "border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50"
                     : "border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs hover:border-slate-400"
                     }`}
@@ -1170,7 +1206,7 @@ const Products = () => {
                     return (
                       <span
                         key={`dots-${idx}`}
-                        className="w-8 h-8 flex items-center justify-center text-xs font-bold text-slate-400 select-none"
+                        className="w-9 h-9 flex items-center justify-center text-xs font-bold text-slate-400 select-none"
                       >
                         …
                       </span>
@@ -1182,9 +1218,10 @@ const Products = () => {
                       key={page}
                       type="button"
                       onClick={() => handlePageChange(page)}
-                      className={`min-w-8 h-8 px-2 rounded-xl text-xs font-bold transition-all ${isCurrent
-                        ? "bg-slate-900 text-white shadow-sm ring-1 ring-slate-900"
-                        : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                      style={{ borderRadius: "9999px" }}
+                      className={`w-9 h-9 rounded-full text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${isCurrent
+                        ? "bg-slate-900 text-white shadow-md ring-2 ring-slate-900"
+                        : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
                         }`}
                     >
                       {page}
@@ -1197,7 +1234,8 @@ const Products = () => {
                   type="button"
                   onClick={() => handlePageChange(validCurrentPage + 1)}
                   disabled={validCurrentPage === totalPages}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${validCurrentPage === totalPages
+                  style={{ borderRadius: "9999px" }}
+                  className={`flex items-center gap-1 px-3.5 py-2 rounded-full text-xs font-bold border transition-all cursor-pointer ${validCurrentPage === totalPages
                     ? "border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50"
                     : "border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs hover:border-slate-400"
                     }`}
@@ -1213,7 +1251,8 @@ const Products = () => {
                 <select
                   value={itemsPerPage}
                   onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                  className="bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  style={{ borderRadius: "9999px" }}
+                  className="bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value={12}>12 items</option>
                   <option value={16}>16 items</option>

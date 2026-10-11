@@ -82,7 +82,7 @@ const Dashboard = () => {
             <Sparkles className="w-7 h-7" />
           </div>
           <h2 className="text-xl font-bold text-slate-900">
-            Welcome to LuxeStore
+            Welcome to AxuraShop
           </h2>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
             Sign in to access your saved orders, personalized recommendations, and wishlists.

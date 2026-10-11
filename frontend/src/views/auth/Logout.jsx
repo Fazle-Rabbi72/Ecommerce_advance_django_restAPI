@@ -20,7 +20,7 @@ const Logout = () => {
             You Have Been Signed Out
           </h1>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
-            Your session has been securely closed. Thank you for visiting LuxeStore.
+            Your session has been securely closed. Thank you for visiting AxuraShop.
           </p>
         </div>
 

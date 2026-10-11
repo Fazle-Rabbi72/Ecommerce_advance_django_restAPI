@@ -82,7 +82,7 @@ const CreatePassword = () => {
             Create New Password
           </h1>
           <p className="text-xs text-slate-500">
-            Set a new secure password for your LuxeStore account.
+            Set a new secure password for your AxuraShop account.
           </p>
         </div>
 

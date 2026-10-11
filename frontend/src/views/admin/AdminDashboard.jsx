@@ -35,11 +35,23 @@ import {
   FileText,
   Sliders,
   Upload,
+  Download,
+  Command,
+  Tag,
+  Percent,
+  Ticket,
+  Copy,
+  Check,
 } from "lucide-react";
 
 const AdminDashboard = () => {
   const userData = UserData();
   const [activeTab, setActiveTab] = useState("overview"); // overview, vendors, products, orders
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [rejectModalReq, setRejectModalReq] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [submittingReject, setSubmittingReject] = useState(false);
 
   // Analytics State
   const [stats, setStats] = useState({
@@ -50,7 +62,7 @@ const AdminDashboard = () => {
     pending_orders: 0,
     recent_orders: [],
   });
-  const [loadingStats, setLoadingStats] = useState(true);
+  const [_loadingStats, setLoadingStats] = useState(true);
 
   // Vendors State
   const [vendors, setVendors] = useState([]);
@@ -81,6 +93,28 @@ const AdminDashboard = () => {
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
+
+  // Admin Coupons State
+  const [coupons, setCoupons] = useState([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [couponSearch, setCouponSearch] = useState("");
+  const [couponStatusFilter, setCouponStatusFilter] = useState("all"); // all, active, inactive
+  const [couponVendorFilter, setCouponVendorFilter] = useState("all"); // all or vendorId
+  const [showAddCouponModal, setShowAddCouponModal] = useState(false);
+  const [showEditCouponModal, setShowEditCouponModal] = useState(false);
+  const [showDeleteCouponModal, setShowDeleteCouponModal] = useState(false);
+  const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const initialCouponForm = {
+    id: null,
+    vendor_id: "",
+    code: "",
+    discount: 15,
+    active: true,
+  };
+  const [couponForm, setCouponForm] = useState(initialCouponForm);
+  const [submittingCoupon, setSubmittingCoupon] = useState(false);
+  const [togglingCouponId, setTogglingCouponId] = useState(null);
+  const [copiedCouponId, setCopiedCouponId] = useState(null);
 
   // Vendor & Category Form States
   const initialVendorForm = {
@@ -216,6 +250,125 @@ const AdminDashboard = () => {
     }
   };
 
+  // Fetch Admin Coupons
+  const fetchCoupons = async () => {
+    setLoadingCoupons(true);
+    try {
+      const res = await apiInstance.get("admin/coupons/");
+      setCoupons(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.warn("Could not load admin coupons:", err);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  const handleOpenAddCoupon = () => {
+    setCouponForm({
+      id: null,
+      vendor_id: vendors[0]?.id ? String(vendors[0].id) : "",
+      code: "",
+      discount: 15,
+      active: true,
+    });
+    setShowAddCouponModal(true);
+  };
+
+  const handleOpenEditCoupon = (coupon) => {
+    setSelectedCoupon(coupon);
+    setCouponForm({
+      id: coupon.id,
+      vendor_id: coupon.vendor?.id ? String(coupon.vendor.id) : "",
+      code: coupon.code,
+      discount: coupon.discount,
+      active: Boolean(coupon.active),
+    });
+    setShowEditCouponModal(true);
+  };
+
+  const handleSaveCoupon = async (e) => {
+    e.preventDefault();
+    const trimmedCode = String(couponForm.code || "").trim().toUpperCase();
+    if (!trimmedCode) {
+      showToast.warning("Please enter a coupon code");
+      return;
+    }
+    const discountVal = parseInt(couponForm.discount, 10);
+    if (isNaN(discountVal) || discountVal < 1 || discountVal > 100) {
+      showToast.warning("Discount must be between 1% and 100%");
+      return;
+    }
+
+    setSubmittingCoupon(true);
+    try {
+      if (couponForm.id) {
+        const res = await apiInstance.put(`admin/coupons/${couponForm.id}/`, {
+          code: trimmedCode,
+          discount: discountVal,
+          active: Boolean(couponForm.active),
+          vendor_id: couponForm.vendor_id || undefined,
+        });
+        showToast.success(res.data?.message || "Coupon updated successfully!");
+        setShowEditCouponModal(false);
+      } else {
+        const res = await apiInstance.post("admin/coupons/", {
+          code: trimmedCode,
+          discount: discountVal,
+          active: Boolean(couponForm.active),
+          vendor_id: couponForm.vendor_id || (vendors[0]?.id ? vendors[0].id : undefined),
+        });
+        showToast.success(res.data?.message || "Coupon created successfully!");
+        setShowAddCouponModal(false);
+      }
+      setCouponForm(initialCouponForm);
+      fetchCoupons();
+    } catch (err) {
+      showToast.error(
+        err.response?.data?.message || "Failed to save coupon"
+      );
+    } finally {
+      setSubmittingCoupon(false);
+    }
+  };
+
+  const handleToggleCoupon = async (coupon) => {
+    setTogglingCouponId(coupon.id);
+    try {
+      const res = await apiInstance.post(`admin/coupons/${coupon.id}/toggle/`);
+      showToast.success(res.data?.message || "Coupon status toggled");
+      setCoupons((prev) =>
+        prev.map((c) =>
+          c.id === coupon.id ? { ...c, active: res.data?.active ?? !c.active } : c
+        )
+      );
+    } catch (_err) {
+      showToast.error("Failed to toggle coupon status");
+    } finally {
+      setTogglingCouponId(null);
+    }
+  };
+
+  const handleDeleteCoupon = async (couponId) => {
+    try {
+      const res = await apiInstance.delete(`admin/coupons/${couponId}/`);
+      showToast.success(res.data?.message || "Coupon deleted successfully");
+      setShowDeleteCouponModal(false);
+      setSelectedCoupon(null);
+      fetchCoupons();
+    } catch (_err) {
+      showToast.error("Failed to delete coupon");
+    }
+  };
+
+  const copyCouponCode = (code, id) => {
+    navigator.clipboard?.writeText(code);
+    setCopiedCouponId(id);
+    showToast.success(`Copied "${code}" to clipboard!`);
+    setTimeout(() => {
+      setCopiedCouponId((prev) => (prev === id ? null : prev));
+    }, 2000);
+  };
+
   const handleApproveRequest = async (reqId) => {
     try {
       await apiInstance.patch(`vendor/request/${reqId}/approve/`);
@@ -223,19 +376,19 @@ const AdminDashboard = () => {
       fetchVendorRequests();
       fetchStats();
       fetchVendors();
-    } catch (err) {
+    } catch (_err) {
       showToast.error("Failed to approve request.");
     }
   };
 
-  const handleRejectRequest = async (reqId) => {
+  const _handleRejectRequest = async (reqId) => {
     if (!window.confirm("Reject and remove this vendor request?")) return;
     try {
       await apiInstance.patch(`vendor/request/${reqId}/reject/`);
       showToast.info("Vendor request rejected.");
       fetchVendorRequests();
       fetchStats();
-    } catch (err) {
+    } catch (_err) {
       showToast.error("Failed to reject request.");
     }
   };
@@ -253,7 +406,7 @@ const AdminDashboard = () => {
       showToast.success(`Payout marked as ${newStatus}!`);
       fetchAdminPayouts();
       fetchStats();
-    } catch (err) {
+    } catch (_err) {
       showToast.error("Failed to update payout status.");
     }
   };
@@ -264,6 +417,48 @@ const AdminDashboard = () => {
       fetchCategories();
     }
   }, [isSuperUser]);
+
+  // Command palette keyboard shortcut listener (Cmd/Ctrl + K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowCommandPalette((prev) => !prev);
+      }
+      if (e.key === "Escape") {
+        setShowCommandPalette(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Export orders to CSV
+  const handleExportOrdersCSV = () => {
+    if (orders.length === 0) {
+      showToast.info("No orders found to export");
+      return;
+    }
+    const headers = ["Order OID", "Customer Name", "Customer Email", "Date", "Total Amount", "Payment Status", "Order Status"];
+    const rows = orders.map((o) => [
+      `"${o.oid || ''}"`,
+      `"${o.full_name || o.buyer?.full_name || ''}"`,
+      `"${o.email || o.buyer?.email || ''}"`,
+      `"${o.date ? new Date(o.date).toLocaleDateString() : ''}"`,
+      `"${Number(o.total || 0).toFixed(2)}"`,
+      `"${o.payment_status || ''}"`,
+      `"${o.order_status || ''}"`,
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `axura_orders_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast.success("Orders exported to CSV!");
+  };
 
   const fetchCategories = async () => {
     try {
@@ -285,10 +480,14 @@ const AdminDashboard = () => {
       fetchVendors();
     }
     if (activeTab === "orders") fetchOrders();
+    if (activeTab === "coupons") {
+      fetchCoupons();
+      fetchVendors();
+    }
   }, [activeTab, isSuperUser]);
 
   // Toggle Vendor Status
-  const handleToggleVendor = async (vendorId, currentStatus) => {
+  const handleToggleVendor = async (vendorId, _currentStatus) => {
     try {
       const res = await apiInstance.post(`admin/vendors/${vendorId}/toggle/`);
       showToast.success(res.data?.message || "Vendor status updated");
@@ -376,7 +575,7 @@ const AdminDashboard = () => {
   };
 
   // --- Dynamic Form Array Helpers (Gallery, Colors, Sizes, Specs) ---
-  const handleGalleryChange = (index, value, isEdit = false) => {
+  const _handleGalleryChange = (index, value, isEdit = false) => {
     if (isEdit) {
       const updated = [...(selectedProduct.gallery || [])];
       updated[index] = value;
@@ -388,7 +587,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleAddGalleryItem = (isEdit = false) => {
+  const _handleAddGalleryItem = (isEdit = false) => {
     if (isEdit) {
       setSelectedProduct({
         ...selectedProduct,
@@ -587,7 +786,7 @@ const AdminDashboard = () => {
     }
     setSubmittingVendor(true);
     try {
-      const res = await apiInstance.post("admin/vendors/", vendorForm);
+      await apiInstance.post("admin/vendors/", vendorForm);
       showToast.success(`Vendor store "${vendorForm.name}" created successfully!`);
       setShowAddVendorModal(false);
       setVendorForm(initialVendorForm);
@@ -788,7 +987,17 @@ const AdminDashboard = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowCommandPalette(true)}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition-all shadow-sm cursor-pointer"
+            title="Global Quick Search (Ctrl+K)"
+          >
+            <Command className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">Search & Jump</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 text-[10px] font-mono border border-slate-700/80">Ctrl+K</kbd>
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -796,6 +1005,7 @@ const AdminDashboard = () => {
               if (activeTab === "vendors") fetchVendors();
               if (activeTab === "products") fetchProducts();
               if (activeTab === "orders") fetchOrders();
+              if (activeTab === "coupons") fetchCoupons();
               showToast.info("Data refreshed");
             }}
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition-all hover:border-slate-600 shadow-sm"
@@ -832,6 +1042,12 @@ const AdminDashboard = () => {
           },
           { id: "products", label: "Product Catalog", icon: Package },
           { id: "orders", label: "Orders & Logistics", icon: Truck },
+          {
+            id: "coupons",
+            label: "Coupons & Discounts",
+            icon: Tag,
+            badge: coupons.filter((c) => c.active).length,
+          },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1357,7 +1573,7 @@ const AdminDashboard = () => {
                             {req.status !== "rejected" && (
                               <button
                                 type="button"
-                                onClick={() => handleRejectRequest(req.id)}
+                                onClick={() => setRejectModalReq(req)}
                                 className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                               >
                                 <XCircle className="w-3.5 h-3.5" /> Reject
@@ -1684,15 +1900,26 @@ const AdminDashboard = () => {
                 Update shipping status in real-time. Changes immediately reflect on customer's live tracking stepper!
               </p>
             </div>
-            <div className="relative w-full sm:w-72">
-              <input
-                type="text"
-                placeholder="Search orders by OID, customer..."
-                value={orderSearch}
-                onChange={(e) => setOrderSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-              />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-72">
+                <input
+                  type="text"
+                  placeholder="Search orders by OID, customer..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              </div>
+              <button
+                type="button"
+                onClick={handleExportOrdersCSV}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs min-h-[36px]"
+                title="Download Orders CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </button>
             </div>
           </div>
 
@@ -1706,7 +1933,8 @@ const AdminDashboard = () => {
                 No orders found.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+                <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-700">
                     <tr>
@@ -1807,8 +2035,422 @@ const AdminDashboard = () => {
                   </tbody>
                 </table>
               </div>
-            )}
+
+              {/* Stacked Mobile Cards for Orders (<768px) */}
+              <div className="md:hidden divide-y divide-slate-700/50">
+                {filteredOrders.map((order) => (
+                  <div key={order.oid} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-white text-xs">#{order.oid}</span>
+                      <span className="text-sm font-extrabold text-indigo-400">${order.total}</span>
+                    </div>
+                    <div className="text-xs text-slate-300">
+                      <p className="font-semibold text-white">{order.full_name || order.buyer?.full_name || "Valued Customer"}</p>
+                      <p className="text-[11px] text-slate-400">{order.email || order.buyer?.email || ""}</p>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <select
+                        value={order.payment_status}
+                        onChange={(e) => handleUpdatePaymentStatus(order.oid, e.target.value)}
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold uppercase text-slate-200 min-h-[44px]"
+                      >
+                        <option value="paid">PAID</option>
+                        <option value="pending">PENDING</option>
+                        <option value="processing">PROCESSING</option>
+                        <option value="failed">FAILED</option>
+                      </select>
+                      <select
+                        value={order.order_status}
+                        onChange={(e) => handleUpdateOrderStatus(order.oid, e.target.value)}
+                        className="bg-indigo-950 border border-indigo-700 text-indigo-200 text-xs font-semibold rounded-xl px-2.5 py-1.5 min-h-[44px]"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Out for Delivery">Out for Delivery</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* TAB 7: COUPONS & DISCOUNTS MANAGEMENT (ADMIN) */}
+      {/* ------------------------------------------------------------- */}
+      {activeTab === "coupons" && (
+        <div className="py-8 space-y-8 animate-in fade-in duration-200">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950/70 to-slate-900 p-6 sm:p-8 rounded-3xl border border-indigo-500/30 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Ticket className="w-3.5 h-3.5" /> Platform Discount Engine
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white">
+                Global Coupons & Promo Codes
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Supervise and create promotional discount codes across all marketplace sellers. Control code status, discount percentages, and seller attribution.
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenAddCoupon}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer self-start md:self-auto shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Store Coupon</span>
+            </button>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Total Coupons
+              </span>
+              <p className="text-2xl sm:text-3xl font-black text-white">{coupons.length}</p>
+            </div>
+            <div className="bg-slate-900/60 p-5 rounded-3xl border border-emerald-500/30 shadow-xl space-y-1">
+              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                Active Promo Codes
+              </span>
+              <p className="text-2xl sm:text-3xl font-black text-emerald-400">
+                {coupons.filter((c) => c.active).length}
+              </p>
+            </div>
+            <div className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Inactive Codes
+              </span>
+              <p className="text-2xl sm:text-3xl font-black text-slate-400">
+                {coupons.filter((c) => !c.active).length}
+              </p>
+            </div>
+            <div className="bg-slate-900/60 p-5 rounded-3xl border border-indigo-500/30 shadow-xl space-y-1">
+              <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
+                Total Platform Redemptions
+              </span>
+              <p className="text-2xl sm:text-3xl font-black text-indigo-400">
+                {coupons.reduce((sum, c) => sum + (c.used_count || 0), 0)}
+              </p>
+            </div>
+          </div>
+
+          {/* Filter & Search Bar */}
+          <div className="bg-slate-900/80 p-4 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search coupon code or seller..."
+                value={couponSearch}
+                onChange={(e) => setCouponSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Vendor Filter */}
+              <select
+                value={couponVendorFilter}
+                onChange={(e) => setCouponVendorFilter(e.target.value)}
+                className="bg-slate-950 border border-slate-800 text-slate-300 text-xs font-semibold rounded-2xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Stores ({vendors.length})</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={String(v.id)}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Status Filter */}
+              <div className="flex rounded-2xl bg-slate-950 p-1 border border-slate-800 text-xs font-bold">
+                <button
+                  onClick={() => setCouponStatusFilter("all")}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    couponStatusFilter === "all"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  All ({coupons.length})
+                </button>
+                <button
+                  onClick={() => setCouponStatusFilter("active")}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    couponStatusFilter === "active"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Active ({coupons.filter((c) => c.active).length})
+                </button>
+                <button
+                  onClick={() => setCouponStatusFilter("inactive")}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    couponStatusFilter === "inactive"
+                      ? "bg-slate-800 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Inactive ({coupons.filter((c) => !c.active).length})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Table / Cards */}
+          {loadingCoupons ? (
+            <div className="bg-slate-900/60 rounded-3xl p-16 text-center text-xs text-slate-400 border border-slate-800">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
+              Loading platform coupons...
+            </div>
+          ) : (() => {
+            const filteredCoupons = coupons.filter((coupon) => {
+              const q = couponSearch.toLowerCase().trim();
+              const matchesSearch =
+                !q ||
+                coupon.code.toLowerCase().includes(q) ||
+                (coupon.vendor?.name && coupon.vendor.name.toLowerCase().includes(q));
+
+              const matchesStatus =
+                couponStatusFilter === "all"
+                  ? true
+                  : couponStatusFilter === "active"
+                  ? Boolean(coupon.active)
+                  : !coupon.active;
+
+              const matchesVendor =
+                couponVendorFilter === "all"
+                  ? true
+                  : String(coupon.vendor?.id) === String(couponVendorFilter);
+
+              return matchesSearch && matchesStatus && matchesVendor;
+            });
+
+            if (filteredCoupons.length === 0) {
+              return (
+                <div className="bg-slate-900/60 rounded-3xl p-16 text-center border border-slate-800 space-y-4">
+                  <div className="w-14 h-14 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto border border-indigo-500/20">
+                    <Ticket className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-white">
+                      No platform coupons found
+                    </h3>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      {couponSearch || couponStatusFilter !== "all" || couponVendorFilter !== "all"
+                        ? "No coupons match the current search or filters."
+                        : "There are currently no discount coupons created in the marketplace."}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleOpenAddCoupon}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all inline-flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create New Coupon</span>
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div className="bg-slate-900/60 rounded-3xl border border-slate-800 shadow-xl overflow-hidden">
+                {/* Desktop View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 font-bold uppercase text-[10px]">
+                        <th className="py-4 px-6">Coupon Code</th>
+                        <th className="py-4 px-6">Seller / Store</th>
+                        <th className="py-4 px-6">Discount Rate</th>
+                        <th className="py-4 px-6">Redemptions</th>
+                        <th className="py-4 px-6">Status</th>
+                        <th className="py-4 px-6">Created Date</th>
+                        <th className="py-4 px-6 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
+                      {filteredCoupons.map((coupon) => (
+                        <tr key={coupon.id} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-sm text-indigo-300 px-2.5 py-1 bg-indigo-950/80 border border-indigo-700/50 rounded-lg tracking-wider">
+                                {coupon.code}
+                              </span>
+                              <button
+                                onClick={() => copyCouponCode(coupon.code, coupon.id)}
+                                title="Copy code"
+                                className="p-1.5 text-slate-500 hover:text-indigo-400 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                              >
+                                {copiedCouponId === coupon.id ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-2.5">
+                              {coupon.vendor?.image && (
+                                <ImageWithFallback
+                                  src={coupon.vendor.image}
+                                  alt={coupon.vendor.name || "Store"}
+                                  className="w-6 h-6 rounded-lg object-cover border border-slate-700"
+                                />
+                              )}
+                              <div>
+                                <p className="font-bold text-white">
+                                  {coupon.vendor?.name || "Marketplace Vendor"}
+                                </p>
+                                <p className="text-[10px] text-slate-500">
+                                  ID: #{coupon.vendor?.id || "-"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-400 font-black text-xs border border-emerald-500/30">
+                              <Percent className="w-3 h-3" />
+                              {coupon.discount}% OFF
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="font-bold text-white">
+                              {coupon.used_count || 0}
+                            </span>
+                            <span className="text-slate-500 text-[11px] ml-1">uses</span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <button
+                              onClick={() => handleToggleCoupon(coupon)}
+                              disabled={togglingCouponId === coupon.id}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all disabled:opacity-50 ${
+                                coupon.active
+                                  ? "bg-emerald-950 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900"
+                                  : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-750"
+                              }`}
+                            >
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  coupon.active ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
+                                }`}
+                              />
+                              {coupon.active ? "Active" : "Inactive"}
+                            </button>
+                          </td>
+                          <td className="py-4 px-6 text-slate-400 text-xs">
+                            {coupon.date ? new Date(coupon.date).toLocaleDateString() : "-"}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleOpenEditCoupon(coupon)}
+                                className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
+                                title="Edit Coupon"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedCoupon(coupon);
+                                  setShowDeleteCouponModal(true);
+                                }}
+                                className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
+                                title="Delete Coupon"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards (<768px) */}
+                <div className="md:hidden divide-y divide-slate-800">
+                  {filteredCoupons.map((coupon) => (
+                    <div key={coupon.id} className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-sm text-indigo-300 px-2.5 py-1 bg-indigo-950 border border-indigo-700/50 rounded-lg">
+                            {coupon.code}
+                          </span>
+                          <button
+                            onClick={() => copyCouponCode(coupon.code, coupon.id)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-slate-800 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                          >
+                            {copiedCouponId === coupon.id ? (
+                              <Check className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-400 font-extrabold text-xs border border-emerald-500/30">
+                          {coupon.discount}% OFF
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span>Store: <strong className="text-white">{coupon.vendor?.name || "Vendor"}</strong></span>
+                        <span>Used: <strong className="text-indigo-300">{coupon.used_count || 0}x</strong></span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                        <button
+                          onClick={() => handleToggleCoupon(coupon)}
+                          disabled={togglingCouponId === coupon.id}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold min-h-[44px] cursor-pointer ${
+                            coupon.active
+                              ? "bg-emerald-950 text-emerald-300 border border-emerald-500/40"
+                              : "bg-slate-800 text-slate-400 border border-slate-700"
+                          }`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              coupon.active ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
+                            }`}
+                          />
+                          {coupon.active ? "Active" : "Inactive"}
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenEditCoupon(coupon)}
+                            className="p-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedCoupon(coupon);
+                              setShowDeleteCouponModal(true);
+                            }}
+                            className="p-2.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -3236,6 +3878,438 @@ const AdminDashboard = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* GLOBAL SEARCH / COMMAND PALETTE MODAL (Cmd/Ctrl + K) */}
+      {showCommandPalette && (
+        <div
+          role="dialog"
+          aria-label="Global Command Palette"
+          className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-black/75 backdrop-blur-md animate-in fade-in duration-150"
+        >
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Input Bar */}
+            <div className="flex items-center gap-3 p-4 border-b border-slate-800 bg-slate-950/60">
+              <Search className="w-5 h-5 text-indigo-400 shrink-0" />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search orders, vendors, products, or jump to tabs..."
+                value={commandQuery}
+                onChange={(e) => setCommandQuery(e.target.value)}
+                className="w-full bg-transparent text-white text-sm placeholder-slate-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCommandPalette(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Suggestions & Filter Results */}
+            <div className="max-h-96 overflow-y-auto p-3 space-y-3 text-xs">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3">
+                  Quick Navigation
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-1">
+                  {[
+                    { id: "overview", label: "Executive Overview", icon: LayoutDashboard },
+                    { id: "vendors", label: "Vendors & Stores", icon: Store },
+                    { id: "requests", label: "Applications", icon: Users },
+                    { id: "payouts", label: "Vendor Payouts", icon: DollarSign },
+                    { id: "products", label: "Product Catalog", icon: Package },
+                    { id: "orders", label: "Orders & Shipping", icon: Truck },
+                    { id: "coupons", label: "Coupons & Discounts", icon: Tag },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setShowCommandPalette(false);
+                          setCommandQuery("");
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <Icon className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {commandQuery && (
+                <div className="space-y-3 border-t border-slate-800 pt-3">
+                  {/* Matching Products */}
+                  {products.filter(p => p.title?.toLowerCase().includes(commandQuery.toLowerCase())).length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3">
+                        Matching Products
+                      </span>
+                      <div className="mt-1 space-y-1">
+                        {products
+                          .filter(p => p.title?.toLowerCase().includes(commandQuery.toLowerCase()))
+                          .slice(0, 4)
+                          .map(p => (
+                            <div
+                              key={p.id}
+                              onClick={() => {
+                                setActiveTab("products");
+                                setProductSearch(p.title);
+                                setShowCommandPalette(false);
+                              }}
+                              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800 cursor-pointer text-slate-200"
+                            >
+                              <span className="truncate font-semibold">{p.title}</span>
+                              <span className="text-emerald-400 font-bold shrink-0 ml-2">${p.price}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Matching Orders */}
+                  {orders.filter(o => (o.oid || o.full_name || '').toLowerCase().includes(commandQuery.toLowerCase())).length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3">
+                        Matching Orders
+                      </span>
+                      <div className="mt-1 space-y-1">
+                        {orders
+                          .filter(o => (o.oid || o.full_name || '').toLowerCase().includes(commandQuery.toLowerCase()))
+                          .slice(0, 4)
+                          .map(o => (
+                            <div
+                              key={o.oid}
+                              onClick={() => {
+                                setActiveTab("orders");
+                                setOrderSearch(o.oid);
+                                setShowCommandPalette(false);
+                              }}
+                              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800 cursor-pointer text-slate-200"
+                            >
+                              <span className="font-mono font-bold text-indigo-400">#{o.oid}</span>
+                              <span className="truncate mx-2">{o.full_name || o.email}</span>
+                              <span className="text-white font-bold shrink-0">${o.total}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REJECT VENDOR APPLICATION REASON MODAL */}
+      {rejectModalReq && (
+        <div
+          role="dialog"
+          aria-label="Reject Application Reason"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+        >
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 text-white">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-rose-400">
+                Reject Seller Request
+              </span>
+              <h3 className="text-lg font-bold text-white mt-1">
+                Decline "{rejectModalReq.shop_name || rejectModalReq.user?.full_name}"
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Please provide an official reason. The applicant will receive clear feedback.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">
+                Reason for Rejection *
+              </label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Incomplete business documentation, duplicate storefront listing, or prohibited category..."
+                className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectModalReq(null);
+                  setRejectReason("");
+                }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold min-h-[44px] cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={submittingReject || !rejectReason.trim()}
+                onClick={async () => {
+                  setSubmittingReject(true);
+                  try {
+                    await apiInstance.patch(`vendor/request/${rejectModalReq.id}/reject/`, {
+                      reason: rejectReason,
+                    });
+                    showToast.info("Vendor application rejected with feedback.");
+                    setRejectModalReq(null);
+                    setRejectReason("");
+                    fetchVendorRequests();
+                    fetchStats();
+                  } catch (_err) {
+                    showToast.error("Failed to reject application");
+                  } finally {
+                    setSubmittingReject(false);
+                  }
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/30 transition-all min-h-[44px] cursor-pointer"
+              >
+                {submittingReject ? "Rejecting..." : "Confirm Rejection"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CREATE / EDIT ADMIN COUPON */}
+      {(showAddCouponModal || showEditCouponModal) && (
+        <div
+          role="dialog"
+          aria-label={showEditCouponModal ? "Edit Platform Coupon" : "Create Platform Coupon"}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+        >
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-6 text-white relative">
+            <button
+              onClick={() => {
+                setShowAddCouponModal(false);
+                setShowEditCouponModal(false);
+              }}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                <Ticket className="w-3.5 h-3.5" />
+                {showEditCouponModal ? "Modify Coupon" : "New Marketplace Promo"}
+              </span>
+              <h3 className="text-lg sm:text-xl font-bold text-white mt-1">
+                {showEditCouponModal ? "Edit Coupon Details" : "Create Store Coupon"}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Select the target vendor store, assign the discount percentage, and define the code.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveCoupon} className="space-y-5 text-xs">
+              {/* Select Vendor */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                  Assigned Vendor / Store *
+                </label>
+                <select
+                  required
+                  value={couponForm.vendor_id}
+                  onChange={(e) =>
+                    setCouponForm({ ...couponForm, vendor_id: e.target.value })
+                  }
+                  className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">-- Choose Vendor --</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={String(v.id)}>
+                      {v.name} (ID: #{v.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Code */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                  Promo Code *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. VIP25, FLASH50"
+                  value={couponForm.code}
+                  onChange={(e) =>
+                    setCouponForm({
+                      ...couponForm,
+                      code: e.target.value.toUpperCase().replace(/\s+/g, ""),
+                    })
+                  }
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl font-mono text-sm font-bold tracking-wider text-white uppercase focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Discount Percentage */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                    Discount Percentage *
+                  </label>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30 text-xs font-black">
+                    {couponForm.discount}% OFF
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="90"
+                    value={couponForm.discount}
+                    onChange={(e) =>
+                      setCouponForm({
+                        ...couponForm,
+                        discount: Number(e.target.value),
+                      })
+                    }
+                    className="flex-1 accent-indigo-500 cursor-pointer"
+                  />
+                  <div className="relative w-20">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      required
+                      value={couponForm.discount}
+                      onChange={(e) =>
+                        setCouponForm({
+                          ...couponForm,
+                          discount: Math.min(100, Math.max(1, Number(e.target.value))),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white text-center focus:outline-none focus:border-indigo-500"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      %
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Toggle */}
+              <div className="flex items-center justify-between p-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl">
+                <div>
+                  <span className="text-xs font-bold text-white block">
+                    Active Status
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {couponForm.active
+                      ? "Shoppers can redeem this code immediately."
+                      : "Code is disabled and cannot be redeemed."}
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={couponForm.active}
+                    onChange={(e) =>
+                      setCouponForm({
+                        ...couponForm,
+                        active: e.target.checked,
+                      })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddCouponModal(false);
+                    setShowEditCouponModal(false);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingCoupon}
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {submittingCoupon ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Saving...
+                    </>
+                  ) : showEditCouponModal ? (
+                    "Save Changes"
+                  ) : (
+                    "Publish Coupon"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DELETE ADMIN COUPON */}
+      {showDeleteCouponModal && selectedCoupon && (
+        <div
+          role="dialog"
+          aria-label="Delete Platform Coupon"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+        >
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl text-center text-white">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-extrabold text-white">
+                Delete Marketplace Coupon?
+              </h3>
+              <p className="text-xs text-slate-400">
+                Are you sure you want to delete coupon{" "}
+                <strong className="font-mono text-indigo-300 bg-slate-800 px-1.5 py-0.5 rounded">
+                  {selectedCoupon.code}
+                </strong>
+                ? Shoppers will no longer receive discounts with this code.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteCouponModal(false);
+                  setSelectedCoupon(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+              >
+                Keep It
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteCoupon(selectedCoupon.id)}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/30 cursor-pointer transition-all"
+              >
+                Yes, Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

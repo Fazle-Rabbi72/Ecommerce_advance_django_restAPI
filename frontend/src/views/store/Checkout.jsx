@@ -60,9 +60,15 @@ const Checkout = () => {
 
     try {
       const response = await apiInstance.post("coupon/", formdata);
-      await fetchOrderData();
-      showToast.success(response.data.message || "Coupon applied successfully!");
-      setCouponCode("");
+      if (response.data?.icon === "error") {
+        showToast.error(response.data.message || "Coupon is invalid or does not apply to this order");
+      } else if (response.data?.icon === "warning") {
+        showToast.warning(response.data.message || "Coupon already applied");
+      } else {
+        await fetchOrderData();
+        showToast.success(response.data?.message || "Coupon applied successfully!");
+        setCouponCode("");
+      }
     } catch (error) {
       console.error(error);
       showToast.error(
@@ -226,9 +232,16 @@ const Checkout = () => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-xs font-bold text-slate-900">
-                        ${item.sub_total || (Number(item.price) * item.qty).toFixed(2)}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slate-900 block">
+                          ${Number(item.sub_total || (Number(item.price) * (item.quantity || item.qty || 1))).toFixed(2)}
+                        </span>
+                        {item.saved && Number(item.saved) > 0 && (
+                          <span className="text-[10px] text-emerald-600 font-bold block">
+                            Saved ${Number(item.saved).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -245,11 +258,21 @@ const Checkout = () => {
 
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between text-slate-600">
-                  <span>Subtotal</span>
+                  <span>Product Subtotal</span>
                   <span className="font-semibold text-slate-900">
-                    ${Number(order?.sub_total || 0).toFixed(2)}
+                    ${(Number(order?.sub_total || 0) + Number(order?.saved || 0)).toFixed(2)}
                   </span>
                 </div>
+
+                {order?.saved && Number(order.saved) > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100">
+                    <span className="flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5" /> Coupon Discount (Products)
+                    </span>
+                    <span>-${Number(order.saved).toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-slate-600">
                   <span>Tax Fee</span>
                   <span className="font-semibold text-slate-900">
@@ -268,13 +291,6 @@ const Checkout = () => {
                     ${Number(order?.shipping_amount || 0).toFixed(2)}
                   </span>
                 </div>
-
-                {order?.saved && Number(order.saved) > 0 && (
-                  <div className="flex justify-between text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg">
-                    <span>Discount Applied</span>
-                    <span>-${Number(order.saved).toFixed(2)}</span>
-                  </div>
-                )}
 
                 <hr className="border-slate-100 my-2" />
 
@@ -316,25 +332,34 @@ const Checkout = () => {
               </form>
 
               {/* Coupon Section */}
-              <div className="pt-4 border-t border-slate-100">
-                <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-indigo-600" /> Apply Promo Code
-                </label>
+              <div className="pt-4 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-indigo-600" /> Apply Promo Code
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">Applied to product price</span>
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Enter coupon code"
+                    placeholder="ENTER STORE COUPON"
                     value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        applyCoupon();
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 uppercase font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                   />
                   <button
                     type="button"
                     onClick={applyCoupon}
-                    disabled={applyingCoupon}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold rounded-xl transition-all"
+                    disabled={applyingCoupon || !couponCode.trim()}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
                   >
-                    {applyingCoupon ? "..." : "Apply"}
+                    {applyingCoupon ? "Applying..." : "Apply"}
                   </button>
                 </div>
               </div>

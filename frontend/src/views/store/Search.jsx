@@ -170,7 +170,7 @@ const Search = () => {
 
       {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
             <ProductCardSkeleton key={n} />
           ))}
@@ -194,7 +194,7 @@ const Search = () => {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4k:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-4 3xl:grid-cols-5 4k:grid-cols-6 gap-3 sm:gap-6">
           {products.map((p) => {
             const currentQty = selectedQuantities[p.id] || 1;
             const activeColor =
@@ -209,10 +209,10 @@ const Search = () => {
             return (
               <div
                 key={p.id}
-                className="group bg-white rounded-2xl border border-slate-200/80 hover:border-indigo-300 p-4 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                className="group bg-white rounded-2xl border border-slate-200/80 hover:border-indigo-300 p-2.5 sm:p-4 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
               >
                 <div>
-                  <div className="relative w-full h-56 rounded-xl overflow-hidden bg-slate-50 mb-4">
+                  <div className="relative w-full h-36 sm:h-56 rounded-xl overflow-hidden bg-slate-50 mb-3 sm:mb-4">
                     <Link to={`/detail/${p?.slug}/`}>
                       <ImageWithFallback
                         src={p?.image}
@@ -331,39 +331,45 @@ const Search = () => {
                 </div>
 
                 <div className="pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 px-1 py-0.5 shrink-0">
+                    <div className="flex items-center gap-1.5 w-full">
+                      <div
+                        className="flex items-center border border-slate-200 rounded-full bg-slate-50 p-0.5 shrink-0"
+                        style={{ borderRadius: "9999px" }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityAdjust(p.id, -1)}
+                          className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs cursor-pointer"
+                          aria-label="Decrease quantity"
+                          style={{ borderRadius: "9999px" }}
+                        >
+                          <Minus className="w-2.5 h-2.5" />
+                        </button>
+                        <span className="w-5 text-center text-xs font-black text-slate-800 select-none">
+                          {currentQty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityAdjust(p.id, 1)}
+                          className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs cursor-pointer"
+                          aria-label="Increase quantity"
+                          style={{ borderRadius: "9999px" }}
+                        >
+                          <Plus className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+
                       <button
                         type="button"
-                        onClick={() => handleQuantityAdjust(p.id, -1)}
-                        className="p-1 hover:text-indigo-600 rounded"
-                        aria-label="Decrease quantity"
+                        onClick={() => handleAddToCart(p)}
+                        disabled={isAdding}
+                        style={{ borderRadius: "9999px" }}
+                        className="flex-1 h-9 bg-slate-900 hover:bg-indigo-600 disabled:bg-indigo-400 text-white text-xs font-bold rounded-full flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                       >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-6 text-center text-xs font-bold text-slate-800">
-                        {currentQty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleQuantityAdjust(p.id, 1)}
-                        className="p-1 hover:text-indigo-600 rounded"
-                        aria-label="Increase quantity"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <span>{isAdding ? "Adding..." : "Add to Cart"}</span>
                       </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleAddToCart(p)}
-                      disabled={isAdding}
-                      className="flex-1 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <ShoppingCart className="w-3.5 h-3.5" />
-                      <span>{isAdding ? "Adding..." : "Add to Cart"}</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             );

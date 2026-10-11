@@ -134,14 +134,22 @@ class CartOrderSerializer(serializers.ModelSerializer):
             self.Meta.depth=1
             
 class CouponSerializer(serializers.ModelSerializer):    
+    used_count = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model=Coupon
         fields='__all__'
     
+    def get_used_count(self, obj):
+        try:
+            return obj.user_by.count()
+        except Exception:
+            return 0
+
     def __init__(self, *args, **kwargs):
         super(CouponSerializer, self).__init__(*args, **kwargs)
         request=self.context.get('request')
-        if request and request.method=='POST':
+        if request and request.method in ['POST', 'PUT', 'PATCH']:
             self.Meta.depth=0
         else:
             self.Meta.depth=3

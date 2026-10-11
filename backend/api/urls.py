@@ -62,6 +62,7 @@ urlpatterns =[
     path('vendor-reviews/<vendor_id>/<review_id>/', vendor_views.ReviewDetailAPIView.as_view()),
     path('vendor-coupon-list/<vendor_id>/', vendor_views.CouponListCreateAPIView.as_view()),
     path('vendor-coupon-detail/<vendor_id>/<coupon_id>/', vendor_views.CouponDetailAPIView.as_view()),
+    path('vendor-coupon-toggle/<vendor_id>/<coupon_id>/', vendor_views.VendorCouponToggleStatusView.as_view()),
     path('vendor-coupon-stats/<vendor_id>/', vendor_views.CouponStatsAPIView.as_view()),
     path('vendor-unseen-notification/<vendor_id>/', vendor_views.NotificationUnseenAPIView.as_view()),
     path('vendor-seen-notification/<vendor_id>/', vendor_views.NotificationSeenAPIView.as_view()),
@@ -95,6 +96,9 @@ urlpatterns =[
     path('admin/orders/<str:order_oid>/status/', store_views.AdminOrderStatusUpdateView.as_view()),
     path('admin/payouts/', vendor_views.AdminPayoutListView.as_view()),
     path('admin/payouts/<int:pk>/status/', vendor_views.AdminPayoutStatusUpdateView.as_view()),
+    path('admin/coupons/', store_views.AdminCouponListCreateView.as_view()),
+    path('admin/coupons/<int:pk>/', store_views.AdminCouponDetailUpdateDeleteView.as_view()),
+    path('admin/coupons/<int:pk>/toggle/', store_views.AdminCouponToggleStatusView.as_view()),
 
     # AI RAG & Vector Assistant Endpoints
     path('ai/chat/', store_views.AIChatAPIView.as_view(), name='ai-chat'),

@@ -78,7 +78,7 @@ const VendorRegister = () => {
       }
 
       navigate("/vendor/dashboard/");
-    } catch (err) {
+    } catch (_err) {
       showToast.error("Failed to complete seller registration. Please try again.");
     } finally {
       setLoading(false);

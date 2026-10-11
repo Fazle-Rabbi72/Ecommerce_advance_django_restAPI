@@ -16,12 +16,15 @@ import {
   Star,
   Package,
   ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
+import { Button, EmptyState } from "../components/ui";
 
 const Wishlist = () => {
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState({});
+  const [lastRemovedItem, setLastRemovedItem] = useState(null);
 
   const userData = UserData();
   const cart_id = CardID();
@@ -50,19 +53,50 @@ const Wishlist = () => {
 
   useEffect(() => {
     fetchWishlist();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData?.user_id]);
 
-  const handleRemoveFromWishlist = async (productId) => {
-    if (!userData?.user_id) return;
+  const handleRemoveFromWishlist = async (product, showUndo = true) => {
+    if (!userData?.user_id || !product) return;
+    const productId = product.id;
+
+    // Optimistic UI removal
+    const previousList = [...wishlist];
+    setWishlist((prev) => prev.filter((item) => item.product?.id !== productId));
+    if (showUndo) setLastRemovedItem(product);
+
     try {
       await apiInstance.post(`customer/wishlist/${userData.user_id}/`, {
         product_id: productId,
         user_id: userData.user_id,
       });
-      showToast.info("Item removed from your wishlist");
-      setWishlist((prev) => prev.filter((item) => item.product?.id !== productId));
-    } catch (err) {
-      showToast.error("Failed to remove item");
+
+      if (showUndo) {
+        showToast.info(`"${product.title}" removed from wishlist.`);
+      }
+    } catch (_err) {
+      // Rollback on failure
+      setWishlist(previousList);
+      showToast.error("Failed to remove item from wishlist");
+    }
+  };
+
+  const handleUndoRemove = async () => {
+    if (!lastRemovedItem || !userData?.user_id) return;
+    const itemToRestore = lastRemovedItem;
+    setLastRemovedItem(null);
+
+    // Optimistic restore
+    setWishlist((prev) => [...prev, { product: itemToRestore }]);
+
+    try {
+      await apiInstance.post(`customer/wishlist/${userData.user_id}/`, {
+        product_id: itemToRestore.id,
+        user_id: userData.user_id,
+      });
+      showToast.success(`Restored "${itemToRestore.title}" to wishlist!`);
+    } catch (_err) {
+      showToast.error("Could not restore item");
     }
   };
 
@@ -104,10 +138,10 @@ const Wishlist = () => {
         setCartCount(listRes.data.length);
       }
 
-      showToast.success("Moved to Cart!");
-      // Optionally remove from wishlist
-      handleRemoveFromWishlist(productId);
-    } catch (err) {
+      showToast.success(`"${product.title}" moved to cart!`);
+      // Remove from wishlist silently without undo prompt
+      handleRemoveFromWishlist(product, false);
+    } catch (_err) {
       showToast.error("Could not add to cart");
     } finally {
       setAddingToCart((prev) => ({ ...prev, [productId]: false }));
@@ -115,7 +149,7 @@ const Wishlist = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-12 2xl:px-16 max-w-screen-4k mx-auto">
+    <div className="min-h-screen bg-slate-50 py-8 sm:py-10 pb-24 md:pb-10 px-4 sm:px-6 lg:px-12 2xl:px-16 max-w-screen-4k mx-auto">
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Customer Sidebar */}
         <Sidebar />
@@ -131,124 +165,125 @@ const Wishlist = () => {
                 Favorite Wishlist
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Products you have saved for later. Move them directly to your cart with one click.
+                Products you have saved for later. Move them directly to your cart with one tap.
               </p>
             </div>
 
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <span className="text-2xl font-extrabold text-slate-900 block">
                 {wishlist.length}
               </span>
-              <span className="text-xs text-slate-400 font-medium">Saved Items</span>
+              <span className="text-xs text-slate-400">Total Saved Products</span>
             </div>
           </div>
 
+          {/* UNDO BANNER TOAST */}
+          {lastRemovedItem && (
+            <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4 animate-in slide-in-from-top-2">
+              <span className="text-xs text-slate-200 truncate">
+                Removed <strong className="text-white">"{lastRemovedItem.title}"</strong>
+              </span>
+              <button
+                type="button"
+                onClick={handleUndoRemove}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all min-h-[36px]"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Undo
+              </button>
+            </div>
+          )}
+
+          {/* Grid of Wishlist Products */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[1, 2, 3].map((n) => (
                 <div
-                  key={i}
-                  className="bg-white rounded-2xl p-4 border border-slate-200 animate-pulse space-y-4"
+                  key={n}
+                  className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs animate-pulse space-y-4"
                 >
-                  <div className="w-full h-48 bg-slate-200 rounded-xl" />
-                  <div className="h-4 bg-slate-200 rounded w-3/4" />
-                  <div className="h-4 bg-slate-200 rounded w-1/2" />
+                  <div className="w-full h-48 bg-slate-100 rounded-2xl" />
+                  <div className="h-4 bg-slate-100 rounded w-3/4" />
+                  <div className="h-4 bg-slate-100 rounded w-1/2" />
+                  <div className="h-10 bg-slate-100 rounded-xl" />
                 </div>
               ))}
             </div>
           ) : wishlist.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-3xl border border-slate-200/80 p-8 shadow-xs">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center">
-                <Heart className="w-8 h-8" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-800 mb-1">
-                Your wishlist is empty
-              </h2>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mb-6">
-                Explore our catalog and click the heart icon on any product to save it here.
-              </p>
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30 text-decoration-none"
-              >
-                Discover Products <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
+            <EmptyState
+              icon={Heart}
+              title="Your Wishlist is Empty"
+              description="Save items you love by tapping the heart icon on any product page."
+              actionLabel="Explore Axura Collection"
+              actionHref="/"
+            />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {wishlist.map((item) => {
-                const p = item.product;
-                if (!p) return null;
-                const isAdding = addingToCart[p.id];
+                const product = item.product;
+                if (!product) return null;
+                const isAdding = Boolean(addingToCart[product.id]);
+
                 return (
                   <div
-                    key={item.id || p.id}
-                    className="bg-white rounded-2xl border border-slate-200/80 hover:border-indigo-300 p-4 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+                    key={item.id || product.id}
+                    className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between group hover:shadow-md transition-all"
                   >
                     <div>
-                      {/* Thumbnail Container */}
-                      <div className="relative w-full h-52 rounded-xl overflow-hidden bg-slate-50 mb-3">
-                        <Link to={`/detail/${p.slug}/`}>
+                      {/* Product Thumbnail */}
+                      <div className="relative w-full h-52 rounded-2xl bg-slate-100 overflow-hidden mb-4">
+                        <Link to={`/detail/${product.slug}/`}>
                           <ImageWithFallback
-                            src={p.image}
-                            alt={p.title}
+                            src={product.image}
+                            alt={product.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         </Link>
+
                         <button
                           type="button"
-                          onClick={() => handleRemoveFromWishlist(p.id)}
-                          className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center shadow-sm transition-all"
-                          title="Remove from Wishlist"
+                          onClick={() => handleRemoveFromWishlist(product)}
+                          className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/90 backdrop-blur-xs text-slate-500 hover:text-rose-600 hover:bg-white shadow-sm flex items-center justify-center transition-all min-h-[44px] min-w-[44px]"
+                          aria-label={`Remove ${product.title} from wishlist`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
-                      {/* Category & Rating */}
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                          {p.category?.title || "Exclusive"}
+                      <div className="space-y-1 mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
+                          {product.category?.title || "Axura Luxury"}
                         </span>
-                        <div className="flex items-center gap-1 text-amber-500 text-xs">
-                          <Star className="w-3.5 h-3.5 fill-amber-400" />
-                          <span className="font-bold text-slate-700">{p.rating || "4.9"}</span>
-                        </div>
+                        <Link
+                          to={`/detail/${product.slug}/`}
+                          className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 line-clamp-1 block text-decoration-none transition-colors"
+                        >
+                          {product.title}
+                        </Link>
                       </div>
 
-                      {/* Title */}
-                      <Link
-                        to={`/detail/${p.slug}/`}
-                        className="text-decoration-none"
-                      >
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-2">
-                          {p.title}
-                        </h3>
-                      </Link>
-
-                      {/* Price */}
-                      <div className="flex items-baseline gap-2 mb-4">
+                      <div className="flex items-center gap-2 mb-4">
                         <span className="text-base font-extrabold text-slate-900">
-                          ${p.price}
+                          ${product.price}
                         </span>
-                        {p.old_price && (
+                        {product.old_price && (
                           <span className="text-xs text-slate-400 line-through">
-                            ${p.old_price}
+                            ${product.old_price}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Move to Cart */}
-                    <button
-                      type="button"
-                      onClick={() => handleMoveToCart(p)}
-                      disabled={isAdding}
-                      className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm shadow-indigo-600/20 transition-all"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span>{isAdding ? "Moving..." : "Move to Cart"}</span>
-                    </button>
+                    {/* Move to Cart 1-Tap Action */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <Button
+                        variant="primary"
+                        onClick={() => handleMoveToCart(product)}
+                        loading={isAdding}
+                        className="w-full min-h-[44px]"
+                      >
+                        <ShoppingCart className="w-4 h-4 mr-2" /> Move to Cart
+                      </Button>
+                    </div>
                   </div>
                 );
               })}

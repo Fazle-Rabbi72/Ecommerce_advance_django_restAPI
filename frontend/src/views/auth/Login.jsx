@@ -40,7 +40,7 @@ const Login = () => {
             <Sparkles className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Sign In to LuxeStore
+            Sign In to AxuraShop
           </h1>
           <p className="text-xs text-slate-500">
             Enter your credentials to access your account & orders.
@@ -133,7 +133,7 @@ const Login = () => {
             </Link>
           </p>
           <p className="text-xs text-slate-500">
-            Want to sell products on LuxeStore?{" "}
+            Want to sell products on AxuraShop?{" "}
             <Link
               to="/vendor/register/"
               className="font-bold text-emerald-600 hover:text-emerald-800 text-decoration-none"

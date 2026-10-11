@@ -54,10 +54,10 @@ const Register = () => {
             <Sparkles className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Create Your Account
+            Create Your AxuraShop Account
           </h1>
           <p className="text-xs text-slate-500">
-            Join over 1M+ active shoppers for exclusive benefits and priority shipping.
+            Join over 1M+ active AxuraShop shoppers for exclusive benefits and priority shipping.
           </p>
         </div>
 

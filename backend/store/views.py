@@ -7,6 +7,7 @@ from userauths.models import User
 from store.serializers import ProductSerializer,CategorySerializer,CartSerializer,CartOrderSerializer,CouponSerializer,NotificationSerializer,ReviewSerializer,VendorSerializer
 
 from rest_framework import generics, status
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from decimal import Decimal
@@ -349,44 +350,88 @@ class CheckoutAPIView(generics.RetrieveAPIView):
         return order
                 
 class CouponAPIView(generics.CreateAPIView):
-    serializer_class=CouponSerializer 
-    queryset=Coupon.objects.all()
-    permission_classes=[AllowAny]
+    serializer_class = CouponSerializer 
+    queryset = Coupon.objects.all()
+    permission_classes = [AllowAny]
     
     def create(self, request):
-        payload=request.data
+        payload = request.data
+        order_oid = payload.get('order_oid')
+        coupon_code = payload.get('coupon_code') or payload.get('code')
         
-        order_oid=payload['order_oid']
-        coupon_code=payload['coupon_code']
+        if not coupon_code:
+            return Response({'message': "Please provide a coupon code", 'icon': "error"}, status=status.HTTP_400_BAD_REQUEST)
         
-        order=CartOrder.objects.get(oid=order_oid)
-        coupon=Coupon.objects.filter(code=coupon_code).first()
+        coupon = Coupon.objects.filter(code__iexact=str(coupon_code).strip()).first()
+        if not coupon:
+            return Response({'message': f"Coupon '{coupon_code}' does not exist", 'icon': "error"}, status=status.HTTP_200_OK)
         
-        if coupon:
-            order_items=CartOrderItem.objects.filter(order=order, vendor=coupon.vendor)
-            if order_items:
-                for i in order_items:
-                    if not coupon in i.coupon.all():
-                        discount=i.total*Decimal(coupon.discount/100)
-                        i.total-=discount
-                        i.sub_total-=discount
-                        i.coupon.add(coupon)
-                        i.saved+=discount
-                        
-                        order.total-=discount
-                        order.sub_total-=discount
-                        order.saved += discount
-                        
-                        i.save()
-                        order.save()
-                        
-                        return Response({'message':"Coupon Activated Successfully","icon":"success"},status=status.HTTP_200_OK)
-                    else:
-                        return Response({'message':"Coupon Already Activated", "icon":"warning"},status=status.HTTP_200_OK)
-            else:
-                return Response({'message':"Coupon Does not Match" ,"icon":"error"},status=status.HTTP_200_OK)
-        else:
-            return Response({'message':"Coupon Does not exist" ,"icon":"error"},status=status.HTTP_200_OK)   
+        if not coupon.active:
+            return Response({'message': f"Coupon '{coupon.code}' is currently inactive or expired", 'icon': "warning"}, status=status.HTTP_200_OK)
+        
+        # If order_oid is provided, apply discount directly to order
+        if order_oid:
+            order = CartOrder.objects.filter(oid=order_oid).first()
+            if not order:
+                return Response({'message': "Order not found", 'icon': "error"}, status=status.HTTP_404_NOT_FOUND)
+            
+            order_items = CartOrderItem.objects.filter(order=order, vendor=coupon.vendor)
+            if not order_items.exists():
+                return Response({
+                    'message': f"Coupon '{coupon.code}' is only valid for products from store '{coupon.vendor.name}'",
+                    'icon': "error"
+                }, status=status.HTTP_200_OK)
+            
+            # Check if all items for this vendor already have this coupon applied
+            items_to_discount = [item for item in order_items if coupon not in item.coupon.all()]
+            if not items_to_discount:
+                return Response({'message': f"Coupon '{coupon.code}' is already activated on your order", 'icon': "warning"}, status=status.HTTP_200_OK)
+            
+            total_discount = Decimal('0.00')
+            COMMISSION_RATE = Decimal("0.001")
+            for item in items_to_discount:
+                product_amount = Decimal(str(item.sub_total))
+                discount = round(product_amount * Decimal(str(coupon.discount)) / Decimal('100'), 2)
+                if discount > product_amount:
+                    discount = product_amount
+
+                item.sub_total -= discount
+                item.total -= discount
+                item.saved += discount
+                item.admin_commission = round(item.sub_total * COMMISSION_RATE, 2)
+                item.vendor_earning = item.sub_total - item.admin_commission
+                item.coupon.add(coupon)
+                item.save()
+                total_discount += discount
+            
+            order.total -= total_discount
+            order.sub_total -= total_discount
+            order.saved += total_discount
+            if order.total < Decimal('0.00'):
+                order.total = Decimal('0.00')
+            if order.sub_total < Decimal('0.00'):
+                order.sub_total = Decimal('0.00')
+            order.save()
+            
+            if order.buyer:
+                coupon.user_by.add(order.buyer)
+            
+            return Response({
+                'message': f"Coupon '{coupon.code}' activated! Saved ${total_discount:.2f} ({coupon.discount}% off products from {coupon.vendor.name})",
+                'icon': "success",
+                'discount': float(total_discount),
+                'discount_percentage': coupon.discount
+            }, status=status.HTTP_200_OK)
+        
+        # If no order_oid (coupons are applied at checkout)
+        return Response({
+            'message': f"Coupon '{coupon.code}' is valid ({coupon.discount}% off from {coupon.vendor.name}). Please apply it at checkout before payment.",
+            'icon': "info",
+            'discount': coupon.discount,
+            'code': coupon.code,
+            'vendor_id': coupon.vendor.id,
+            'vendor_name': coupon.vendor.name
+        }, status=status.HTTP_200_OK)   
        
 class StripeCheckoutView(generics.CreateAPIView):
     serializer_class=CartOrderSerializer
@@ -1105,4 +1150,121 @@ class AISyncVectorAPIView(generics.GenericAPIView):
                 "status": "error",
                 "message": f"Vector indexing failed: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+
+
+# Global Admin Coupon Management Endpoints
+class AdminCouponListCreateView(generics.ListCreateAPIView):
+    queryset = Coupon.objects.all().order_by('-date')
+    serializer_class = CouponSerializer
+    permission_classes = [IsSuperUserPermission]
+
+    def create(self, request, *args, **kwargs):
+        payload = request.data
+        code = str(payload.get('code', '')).strip().upper()
+        discount = payload.get('discount')
+        active = payload.get('active', True)
+        vendor_id = payload.get('vendor_id')
+
+        if not code:
+            return Response({'message': 'Coupon code is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if discount is None or discount == "":
+            return Response({'message': 'Discount percentage is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            discount = int(discount)
+            if discount < 1 or discount > 100:
+                return Response({'message': 'Discount must be between 1% and 100%'}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({'message': 'Invalid discount value'}, status=status.HTTP_400_BAD_REQUEST)
+
+        vendor = None
+        if vendor_id:
+            vendor = Vendor.objects.filter(id=vendor_id).first()
+        if not vendor:
+            vendor = Vendor.objects.first()
+
+        if not vendor:
+            return Response({'message': 'A registered vendor is required to attach the coupon.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check existing code for this vendor
+        existing = Coupon.objects.filter(vendor=vendor, code__iexact=code).first()
+        if existing:
+            return Response({'message': f"A coupon with code '{code}' already exists for {vendor.name}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_active = (str(active).strip().lower() in ['true', '1', 'yes']) if not isinstance(active, bool) else active
+
+        coupon = Coupon.objects.create(
+            vendor=vendor,
+            code=code,
+            discount=discount,
+            active=is_active
+        )
+        return Response({
+            'message': 'Coupon created successfully',
+            'coupon': CouponSerializer(coupon).data
+        }, status=status.HTTP_201_CREATED)
+
+
+class AdminCouponDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Coupon.objects.all()
+    serializer_class = CouponSerializer
+    permission_classes = [IsSuperUserPermission]
+
+    def update(self, request, *args, **kwargs):
+        coupon = self.get_object()
+        payload = request.data
+
+        if 'code' in payload and payload['code']:
+            code = str(payload['code']).strip().upper()
+            conflict = Coupon.objects.filter(vendor=coupon.vendor, code__iexact=code).exclude(id=coupon.id).first()
+            if conflict:
+                return Response({'message': f"Coupon code '{code}' already exists"}, status=status.HTTP_400_BAD_REQUEST)
+            coupon.code = code
+
+        if 'discount' in payload and payload['discount'] is not None:
+            try:
+                discount = int(payload['discount'])
+                if 1 <= discount <= 100:
+                    coupon.discount = discount
+            except (ValueError, TypeError):
+                pass
+
+        if 'active' in payload:
+            active = payload['active']
+            coupon.active = (str(active).strip().lower() in ['true', '1', 'yes']) if not isinstance(active, bool) else active
+
+        if 'vendor_id' in payload and payload['vendor_id']:
+            v = Vendor.objects.filter(id=payload['vendor_id']).first()
+            if v:
+                coupon.vendor = v
+
+        coupon.save()
+        return Response({
+            'message': 'Coupon updated successfully',
+            'coupon': CouponSerializer(coupon).data
+        }, status=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        coupon = self.get_object()
+        code = coupon.code
+        coupon.delete()
+        return Response({'message': f"Coupon '{code}' deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class AdminCouponToggleStatusView(APIView):
+    permission_classes = [IsSuperUserPermission]
+
+    def post(self, request, pk):
+        coupon = Coupon.objects.filter(id=pk).first()
+        if not coupon:
+            return Response({'message': 'Coupon not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        coupon.active = not coupon.active
+        coupon.save()
+        status_text = 'activated' if coupon.active else 'deactivated'
+        return Response({
+            'message': f"Coupon '{coupon.code}' {status_text} successfully",
+            'active': coupon.active,
+            'coupon': CouponSerializer(coupon).data
+        }, status=status.HTTP_200_OK)
+

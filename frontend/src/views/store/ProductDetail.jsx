@@ -51,7 +51,7 @@ const ProductDetail = () => {
   const cartContextVal = useContext(CartContext);
   const setCartCount = Array.isArray(cartContextVal)
     ? cartContextVal[1]
-    : () => {};
+    : () => { };
 
   // Load product details
   useEffect(() => {
@@ -266,7 +266,7 @@ const ProductDetail = () => {
                   {Math.round(
                     ((Number(product.old_price) - Number(product.price)) /
                       Number(product.old_price)) *
-                      100
+                    100
                   )}
                   %
                 </span>
@@ -281,11 +281,10 @@ const ProductDetail = () => {
                   key={idx}
                   type="button"
                   onClick={() => setActiveImage(g.image)}
-                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${
-                    activeImage === g.image
+                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${activeImage === g.image
                       ? "border-indigo-600 ring-2 ring-indigo-500/30 scale-95"
                       : "border-slate-200 hover:border-slate-400 opacity-70 hover:opacity-100"
-                  }`}
+                    }`}
                 >
                   <img
                     src={g.image}
@@ -315,11 +314,10 @@ const ProductDetail = () => {
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
                   key={star}
-                  className={`w-4 h-4 ${
-                    star <= (product.rating || 4)
+                  className={`w-4 h-4 ${star <= (product.rating || 4)
                       ? "fill-amber-400 text-amber-400"
                       : "text-slate-200"
-                  }`}
+                    }`}
                 />
               ))}
             </div>
@@ -365,11 +363,10 @@ const ProductDetail = () => {
                     key={idx}
                     type="button"
                     onClick={() => setSizeValue(s.name)}
-                    className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-all ${
-                      sizeValue === s.name
+                    className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-all ${sizeValue === s.name
                         ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                         : "bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     {s.name}
                   </button>
@@ -393,11 +390,10 @@ const ProductDetail = () => {
                     key={idx}
                     type="button"
                     onClick={() => setColorValue(c.name)}
-                    className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${
-                      colorValue === c.name
+                    className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${colorValue === c.name
                         ? "ring-2 ring-indigo-600 ring-offset-2 scale-110"
                         : "hover:scale-105 border-slate-200"
-                    }`}
+                      }`}
                     style={{ backgroundColor: c.color_code || "#000" }}
                     title={c.name}
                   >
@@ -414,21 +410,26 @@ const ProductDetail = () => {
           <div className="pt-4 space-y-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               {/* Stepper */}
-              <div className="flex items-center justify-between border border-slate-200 rounded-2xl bg-slate-50 p-1 w-full sm:w-36">
+              <div
+                className="flex items-center justify-between border border-slate-200 rounded-full bg-slate-50 p-1 w-full sm:w-36"
+                style={{ borderRadius: "9999px" }}
+              >
                 <button
                   type="button"
                   onClick={() => handleQuantityAdjust(-1)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 hover:bg-white hover:text-indigo-600 transition-colors shadow-xs"
+                  style={{ borderRadius: "9999px" }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-slate-600 hover:bg-white hover:text-indigo-600 transition-colors shadow-xs cursor-pointer"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="font-bold text-slate-900 text-sm">
+                <span className="font-bold text-slate-900 text-sm select-none">
                   {quantity}
                 </span>
                 <button
                   type="button"
                   onClick={() => handleQuantityAdjust(1)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 hover:bg-white hover:text-indigo-600 transition-colors shadow-xs"
+                  style={{ borderRadius: "9999px" }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-slate-600 hover:bg-white hover:text-indigo-600 transition-colors shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -439,7 +440,8 @@ const ProductDetail = () => {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={isAddingToCart}
-                className="flex-1 py-3.5 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01]"
+                style={{ borderRadius: "9999px" }}
+                className="flex-1 py-3.5 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold rounded-full flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01] active:scale-95 cursor-pointer min-h-[48px]"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>
@@ -451,19 +453,19 @@ const ProductDetail = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setIsWishlisted(!isWishlisted);
-                  toast.fire({
-                    icon: !isWishlisted ? "success" : "info",
-                    title: !isWishlisted
-                      ? "Saved to wishlist"
-                      : "Removed from wishlist",
-                  });
+                  const nextWish = !isWishlisted;
+                  setIsWishlisted(nextWish);
+                  if (nextWish) {
+                    showToast.success("Saved to wishlist");
+                  } else {
+                    showToast.info("Removed from wishlist");
+                  }
                 }}
-                className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center ${
-                  isWishlisted
+                style={{ borderRadius: "9999px" }}
+                className={`w-12 h-12 rounded-full border transition-all flex items-center justify-center cursor-pointer shrink-0 ${isWishlisted
                     ? "bg-rose-50 border-rose-200 text-rose-500"
                     : "border-slate-200 text-slate-500 hover:text-rose-500 hover:bg-rose-50/50"
-                }`}
+                  }`}
                 aria-label="Wishlist"
               >
                 <Heart
@@ -504,11 +506,10 @@ const ProductDetail = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-4 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
-                activeTab === tab.id
+              className={`px-6 py-4 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id
                   ? "border-indigo-600 text-indigo-600 bg-white"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -535,9 +536,8 @@ const ProductDetail = () => {
                 {product.specification?.map((s, idx) => (
                   <div
                     key={idx}
-                    className={`flex py-3 px-4 ${
-                      idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                    }`}
+                    className={`flex py-3 px-4 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                      }`}
                   >
                     <span className="w-1/3 text-xs font-semibold text-slate-500">
                       {s.title}
@@ -601,11 +601,10 @@ const ProductDetail = () => {
                           className="p-1 hover:scale-110 transition-transform"
                         >
                           <Star
-                            className={`w-6 h-6 ${
-                              star <= reviewRating
+                            className={`w-6 h-6 ${star <= reviewRating
                                 ? "fill-amber-400 text-amber-400"
                                 : "text-slate-300"
-                            }`}
+                              }`}
                           />
                         </button>
                       ))}
@@ -684,11 +683,10 @@ const ProductDetail = () => {
                             {[1, 2, 3, 4, 5].map((s) => (
                               <Star
                                 key={s}
-                                className={`w-3.5 h-3.5 ${
-                                  s <= (r.rating || 5)
+                                className={`w-3.5 h-3.5 ${s <= (r.rating || 5)
                                     ? "fill-amber-400 text-amber-400"
                                     : "text-slate-200"
-                                }`}
+                                  }`}
                               />
                             ))}
                           </div>
