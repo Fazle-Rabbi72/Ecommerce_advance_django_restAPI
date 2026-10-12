@@ -67,7 +67,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'corsheaders',
-    'anymail',
 ]
 
 MIDDLEWARE = [
@@ -159,17 +158,6 @@ CACHES = {
     }
 }
 
-# Database for docker run
-# DATABASES = {
-#     'default': {
-#         'ENGINE': env('DB_ENGINE', default='django.db.backends.postgresql'),
-#         'NAME': env('DB_NAME'),
-#         'USER': env('DB_USER'),
-#         'PASSWORD': env('DB_PASSWORD'),
-#         'HOST': env('DB_HOST'),
-#         'PORT': env('DB_PORT'),
-#     }
-# }
 
 
 # Password validation
