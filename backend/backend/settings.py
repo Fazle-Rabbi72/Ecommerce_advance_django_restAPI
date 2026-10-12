@@ -239,8 +239,8 @@ DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-STRIPE_PUBLIC_KEY = env("STRIPE_PUBLIC_KEY")
-STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY")
+STRIPE_PUBLIC_KEY = env("STRIPE_PUBLIC_KEY", default="")
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
 FRONTEND_SITE_URL = env("FRONTEND_SITE_URL", default="http://localhost:3000")
 
 REST_FRAMEWORK = {
@@ -330,7 +330,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587
-EMAIL_HOST_USER =env("EMAIL")
-EMAIL_HOST_PASSWORD =env("EMAIL_PASSWORD")
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_HOST_USER = env("EMAIL", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or "webmaster@localhost"
 

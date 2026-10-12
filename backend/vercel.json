@@ -1,16 +1,13 @@
 {
-    "builds": [
-      {
-        "src": "backend/wsgi.py",
-        "use": "@vercel/python",
-        "config": { "maxLambdaSize": "15mb", "runtime": "python3.12" }
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "backend/wsgi.py"
-      }
-    ],
-    "regions": ["sin1"] 
-  }
+  "version": 2,
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "backend/wsgi.py"
+    }
+  ]
+}
