@@ -32,6 +32,7 @@ import {
   Grid,
   ChevronLeft,
   ChevronRight,
+  Layers,
 } from "lucide-react";
 
 const Products = () => {
@@ -561,37 +562,52 @@ const Products = () => {
         </div>
       </section>
 
-      {/* Category Circular Carousel / Slider (Matching User Reference Image) */}
-      <section className="mb-8 sm:mb-12 bg-white rounded-3xl p-5 sm:p-6 lg:p-7 border border-slate-200/80 shadow-xs relative">
+      {/* Category Modern Showcase Section */}
+      <section className="mb-8 sm:mb-12 relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white p-5 sm:p-7 lg:p-8 border border-slate-800 shadow-2xl">
+        {/* Ambient Decorative Glows */}
+        <div className="absolute -top-32 -left-32 w-80 h-80 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/15 via-transparent to-transparent pointer-events-none" />
+
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800/80">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Featured Categories</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-bold uppercase tracking-wider mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Curated Departments • Verified Brands</span>
+            </div>
+            <h2 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              <span>Featured Categories & Collections</span>
             </h2>
-            <p className="text-xs text-slate-500 font-normal">
-              Browse top categories and verified collections
+            <p className="text-xs text-slate-400 font-normal mt-0.5 max-w-xl">
+              Browse top category hubs, verified flagship catalogs, and trending department collections.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
             {activeCategory !== "all" && (
               <button
                 type="button"
                 onClick={() => handleCategorySelect("all")}
-                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1 transition-all border border-emerald-200"
+                className="px-3.5 py-1.5 rounded-full bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition-all border border-indigo-500/40 cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+                title="Reset to All Categories"
               >
-                <RotateCcw className="w-3 h-3 text-emerald-600" />
-                <span>Show All</span>
+                <RotateCcw className="w-3.5 h-3.5 text-indigo-300" />
+                <span>Showing: {activeCategoryTitle || "Selected"}</span>
+                <span className="text-indigo-400 font-normal">| Clear</span>
               </button>
             )}
 
-            {/* Scroll navigation arrows */}
+            <div className="px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-xs font-semibold text-slate-300">
+              <span className="text-indigo-400 font-bold">{categories.length}</span> Departments
+            </div>
+
+            {/* Scroll navigation controls */}
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => scrollCategories("left")}
-                className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 hover:border-emerald-300 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/50 flex items-center justify-center transition-all shadow-2xs hover:scale-105 active:scale-95"
+                className="w-8 h-8 rounded-xl bg-slate-800/90 hover:bg-indigo-600 border border-slate-700/80 hover:border-indigo-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-md hover:scale-105 active:scale-95 cursor-pointer"
                 aria-label="Scroll left"
                 title="Scroll left"
               >
@@ -600,7 +616,7 @@ const Products = () => {
               <button
                 type="button"
                 onClick={() => scrollCategories("right")}
-                className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 hover:border-emerald-300 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/50 flex items-center justify-center transition-all shadow-2xs hover:scale-105 active:scale-95"
+                className="w-8 h-8 rounded-xl bg-slate-800/90 hover:bg-indigo-600 border border-slate-700/80 hover:border-indigo-400 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-md hover:scale-105 active:scale-95 cursor-pointer"
                 aria-label="Scroll right"
                 title="Scroll right"
               >
@@ -610,87 +626,101 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Carousel Container with Floating Edge Arrows */}
+        {/* Carousel Container with Floating Edge Arrows and Gradient Edge Masks */}
         <div className="relative group/slider">
-          {/* Floating Left Arrow (Visible on tablet/desktop, mobile uses native touch swipe) */}
+          {/* Edge Fade Masks for desktop */}
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 sm:w-14 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent z-10 rounded-l-2xl hidden sm:block" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 sm:w-14 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent z-10 rounded-r-2xl hidden sm:block" />
+
+          {/* Floating Left Arrow */}
           <button
             type="button"
             onClick={() => scrollCategories("left")}
-            className="hidden sm:flex absolute -left-3 sm:-left-3.5 top-12 sm:top-14 md:top-16 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md hover:shadow-lg text-slate-700 hover:text-emerald-600 hover:border-emerald-300 items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
+            className="hidden sm:flex absolute -left-3 sm:-left-3.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-800/90 hover:bg-indigo-600 border border-slate-700/80 hover:border-indigo-400 text-white shadow-xl backdrop-blur-md items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
             aria-label="Previous categories"
             title="Scroll left"
-            style={{ borderRadius: "9999px" }}
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          {/* Floating Right Arrow (Visible on tablet/desktop, mobile uses native touch swipe) */}
+          {/* Floating Right Arrow */}
           <button
             type="button"
             onClick={() => scrollCategories("right")}
-            className="hidden sm:flex absolute -right-3 sm:-right-3.5 top-12 sm:top-14 md:top-16 -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md hover:shadow-lg text-slate-700 hover:text-emerald-600 hover:border-emerald-300 items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
+            className="hidden sm:flex absolute -right-3 sm:-right-3.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-800/90 hover:bg-indigo-600 border border-slate-700/80 hover:border-indigo-400 text-white shadow-xl backdrop-blur-md items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
             aria-label="Next categories"
             title="Scroll right"
-            style={{ borderRadius: "9999px" }}
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Slider Track */}
           {categoriesLoading ? (
-            <div className="flex items-center gap-3 sm:gap-4 md:gap-6 overflow-x-auto pb-2 scrollbar-none snap-x">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <div className="flex items-center gap-3 sm:gap-4 md:gap-5 overflow-x-auto pb-2 scrollbar-none snap-x">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                 <CategoryCardSkeleton key={n} />
               ))}
             </div>
           ) : (
             <div
               ref={categoryScrollRef}
-              className="flex items-start gap-3 sm:gap-4 md:gap-6 lg:gap-7 overflow-x-auto scroll-smooth py-2 px-1 scrollbar-none snap-x select-none"
+              className="flex items-stretch gap-3 sm:gap-4 md:gap-5 overflow-x-auto scroll-smooth py-2 px-1 scrollbar-none snap-x select-none"
             >
-              {/* "All Categories" Circular Item */}
+              {/* "All Categories" Item */}
               <button
                 type="button"
                 onClick={() => handleCategorySelect("all")}
-                className="w-28 sm:w-32 md:w-36 flex flex-col items-center text-center group cursor-pointer shrink-0 snap-start transition-all outline-none"
+                className={`w-32 sm:w-36 md:w-44 flex flex-col items-center justify-between text-center group cursor-pointer shrink-0 snap-start transition-all duration-300 outline-none rounded-2xl sm:rounded-3xl p-3 sm:p-4 ${
+                  activeCategory === "all"
+                    ? "bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-950 border-2 border-indigo-500 shadow-xl shadow-indigo-600/30 scale-[1.03] ring-4 ring-indigo-500/20"
+                    : "bg-slate-900/80 hover:bg-slate-855 border border-slate-800 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1.5"
+                }`}
               >
-                {/* Circular pastel bubble */}
+                {/* Visual Icon Bubble */}
                 <div
-                  className={`relative aspect-square w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full flex items-center justify-center p-3 sm:p-4 transition-all duration-300 group-hover:scale-105 group-hover:shadow-md ${
+                  className={`relative aspect-square w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl sm:rounded-3xl flex items-center justify-center p-3 transition-all duration-300 ${
                     activeCategory === "all"
-                      ? "bg-[#d8eedb] ring-3 ring-emerald-500 shadow-md scale-105"
-                      : "bg-[#edf7ed] hover:bg-[#e4f3e5]"
+                      ? "bg-indigo-950/80 border border-indigo-400/50 shadow-inner"
+                      : "bg-slate-800/70 group-hover:bg-indigo-950/40 border border-slate-700/60 group-hover:border-indigo-500/40"
                   }`}
                 >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-600/10 flex items-center justify-center text-emerald-700 transition-transform duration-300 group-hover:scale-110">
-                    <Grid className="w-6 h-6 sm:w-7 sm:h-7" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 transition-transform duration-300 group-hover:scale-110">
+                    <Layers className="w-6 h-6 sm:w-7 sm:h-7" />
                   </div>
                   {activeCategory === "all" && (
-                    <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-emerald-600 text-white rounded-full p-1 shadow-xs">
+                    <div className="absolute top-1.5 right-1.5 bg-indigo-500 text-white rounded-full p-1 shadow-md shadow-indigo-500/40 ring-2 ring-slate-950 animate-in zoom-in">
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </div>
                   )}
                 </div>
 
                 {/* Title */}
-                <h6
-                  className={`mt-3 sm:mt-3.5 text-xs sm:text-[13px] md:text-sm font-bold tracking-tight transition-colors w-full px-1 truncate ${
-                    activeCategory === "all"
-                      ? "text-emerald-700 font-extrabold"
-                      : "text-slate-800 group-hover:text-emerald-700"
-                  }`}
-                  title="All Categories"
-                >
-                  All Categories
-                </h6>
+                <div className="w-full mt-3">
+                  <h6
+                    className={`text-xs sm:text-[13px] md:text-sm font-bold tracking-tight transition-colors w-full px-1 truncate ${
+                      activeCategory === "all"
+                        ? "text-indigo-300 font-black"
+                        : "text-slate-200 group-hover:text-white"
+                    }`}
+                    title="All Categories"
+                  >
+                    All Categories
+                  </h6>
 
-                {/* Subtitle / Count */}
-                <span className="text-[11px] sm:text-xs text-slate-400 font-medium mt-0.5">
-                  {products.length}+ Products
-                </span>
+                  {/* Subtitle / Count Pill */}
+                  <span
+                    className={`inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold transition-colors ${
+                      activeCategory === "all"
+                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                        : "bg-slate-800 text-slate-400 group-hover:text-slate-300 border border-slate-700/60"
+                    }`}
+                  >
+                    {products.length}+ Products
+                  </span>
+                </div>
               </button>
 
-              {/* Individual Category Circular Items */}
+              {/* Individual Category Items */}
               {categories.map((c) => {
                 const isSelected =
                   activeCategory === c.id?.toString() ||
@@ -711,45 +741,57 @@ const Products = () => {
                     key={c.id}
                     type="button"
                     onClick={() => handleCategorySelect(c.id?.toString(), c.title)}
-                    className="w-28 sm:w-32 md:w-36 flex flex-col items-center text-center group cursor-pointer shrink-0 snap-start transition-all outline-none"
+                    className={`w-32 sm:w-36 md:w-44 flex flex-col items-center justify-between text-center group cursor-pointer shrink-0 snap-start transition-all duration-300 outline-none rounded-2xl sm:rounded-3xl p-3 sm:p-4 ${
+                      isSelected
+                        ? "bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-950 border-2 border-indigo-500 shadow-xl shadow-indigo-600/30 scale-[1.03] ring-4 ring-indigo-500/20"
+                        : "bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1.5"
+                    }`}
                   >
-                    {/* Circular pastel bubble */}
+                    {/* Visual Image Bubble */}
                     <div
-                      className={`relative aspect-square w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden flex items-center justify-center p-3 sm:p-4 transition-all duration-300 group-hover:scale-105 group-hover:shadow-md ${
+                      className={`relative aspect-square w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center p-3 transition-all duration-300 ${
                         isSelected
-                          ? "bg-[#d8eedb] ring-3 ring-emerald-500 shadow-md scale-105"
-                          : "bg-[#edf7ed] hover:bg-[#e4f3e5]"
+                          ? "bg-indigo-950/80 border border-indigo-400/50 shadow-inner"
+                          : "bg-slate-800/70 group-hover:bg-indigo-950/40 border border-slate-700/60 group-hover:border-indigo-500/40"
                       }`}
                     >
                       <ImageWithFallback
                         src={categoryImg}
                         alt={c.title}
-                        className="w-full h-full object-contain rounded-full drop-shadow-xs transition-transform duration-300 group-hover:scale-110"
-                        imgClassName="rounded-full"
+                        className="w-full h-full object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-2"
+                        imgClassName="object-contain"
                       />
                       {isSelected && (
-                        <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-emerald-600 text-white rounded-full p-1 shadow-xs">
+                        <div className="absolute top-1.5 right-1.5 bg-indigo-500 text-white rounded-full p-1 shadow-md shadow-indigo-500/40 ring-2 ring-slate-950 animate-in zoom-in">
                           <Check className="w-2.5 h-2.5 stroke-[3]" />
                         </div>
                       )}
                     </div>
 
                     {/* Title */}
-                    <h6
-                      className={`mt-3 sm:mt-3.5 text-xs sm:text-[13px] md:text-sm font-bold tracking-tight transition-colors w-full px-1 truncate ${
-                        isSelected
-                          ? "text-emerald-700 font-extrabold"
-                          : "text-slate-800 group-hover:text-emerald-700"
-                      }`}
-                      title={c.title}
-                    >
-                      {c.title}
-                    </h6>
+                    <div className="w-full mt-3">
+                      <h6
+                        className={`text-xs sm:text-[13px] md:text-sm font-bold tracking-tight transition-colors w-full px-1 truncate ${
+                          isSelected
+                            ? "text-indigo-300 font-black"
+                            : "text-slate-200 group-hover:text-white"
+                        }`}
+                        title={c.title}
+                      >
+                        {c.title}
+                      </h6>
 
-                    {/* Subtitle / Count */}
-                    <span className="text-[11px] sm:text-xs text-slate-400 font-medium mt-0.5">
-                      {count > 0 ? `${count}+ Products` : "0 Products"}
-                    </span>
+                      {/* Subtitle / Count Pill */}
+                      <span
+                        className={`inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold transition-colors ${
+                          isSelected
+                            ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                            : "bg-slate-800 text-slate-400 group-hover:text-slate-300 border border-slate-700/60"
+                        }`}
+                      >
+                        {count > 0 ? `${count}+ Products` : "Browse Collection"}
+                      </span>
+                    </div>
                   </button>
                 );
               })}

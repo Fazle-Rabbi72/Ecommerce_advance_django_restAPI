@@ -73,21 +73,21 @@ export const CategoryItemSkeleton = () => {
   );
 };
 
-// Category card skeleton (Circular slider avatar matching modern design)
+// Category card skeleton (Modern squircle glass design)
 export const CategoryCardSkeleton = () => {
   return (
-    <div className="flex flex-col items-center text-center shrink-0 w-28 sm:w-32 md:w-36 py-1 space-y-2">
-      <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden bg-[#edf7ed] flex items-center justify-center p-3 sm:p-4">
+    <div className="flex flex-col items-center text-center shrink-0 w-32 sm:w-36 md:w-44 p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-slate-800/40 border border-slate-750 space-y-3">
+      <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-800 flex items-center justify-center p-3">
         <Skeleton
-          variant="circular"
+          variant="rounded"
           width="100%"
           height="100%"
           animation="wave"
-          sx={{ bgcolor: "#d8edd9" }}
+          sx={{ bgcolor: "#334155", borderRadius: "1rem" }}
         />
       </div>
-      <Skeleton variant="text" width="70%" height={18} animation="wave" sx={{ bgcolor: "#f1f5f9" }} />
-      <Skeleton variant="text" width="45%" height={14} animation="wave" sx={{ bgcolor: "#f1f5f9" }} />
+      <Skeleton variant="text" width="75%" height={18} animation="wave" sx={{ bgcolor: "#334155" }} />
+      <Skeleton variant="rounded" width="50%" height={16} animation="wave" sx={{ bgcolor: "#334155", borderRadius: "9999px" }} />
     </div>
   );
 };
