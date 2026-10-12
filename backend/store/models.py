@@ -62,10 +62,13 @@ class Product(models.Model):
         if hasattr(self, '_prefetched_objects_cache') and 'review_set' in self._prefetched_objects_cache:
             reviews = self.review_set.all()
             if reviews:
-                return sum(r.rating for r in reviews if r.rating) / len(reviews)
+                return round(sum(r.rating for r in reviews if r.rating) / len(reviews), 1)
             return self.rating or 0
         product_rating = Review.objects.filter(product=self).aggregate(avg_rating=models.Avg("rating"))
-        return product_rating['avg_rating']
+        avg = product_rating['avg_rating']
+        if avg is not None:
+            return round(avg, 1)
+        return self.rating or 0
     
     def rating_count(self):
         if hasattr(self, '_prefetched_objects_cache') and 'review_set' in self._prefetched_objects_cache:

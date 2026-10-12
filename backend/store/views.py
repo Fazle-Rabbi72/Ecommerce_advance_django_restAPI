@@ -12,6 +12,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from decimal import Decimal
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
 
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -25,6 +27,28 @@ from django.core.cache import cache
 def send_notification(user=None, vendor=None, order=None, order_item=None):
     Notification.objects.create(user=user,vendor=vendor,order=order,order_item=order_item)
 
+
+class ProductPagination(PageNumberPagination):
+    page_size = 16
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+    def paginate_queryset(self, queryset, request, view=None):
+        # Support ?paginate=false or ?all=true for clients that need full list
+        if request.query_params.get('paginate') == 'false' or request.query_params.get('all') == 'true':
+            return None
+        return super().paginate_queryset(queryset, request, view)
+
+    def get_paginated_response(self, data):
+        return Response({
+            'count': self.page.paginator.count,
+            'total_pages': self.page.paginator.num_pages,
+            'current_page': self.page.number,
+            'page_size': self.get_page_size(self.request),
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'results': data
+        })
 
 
 class CategoryListAPIView(generics.ListAPIView):
@@ -45,15 +69,61 @@ class CategoryListAPIView(generics.ListAPIView):
 class ProductListAPIView(generics.ListAPIView):
     serializer_class = ProductSerializer
     permission_classes = [AllowAny]
+    pagination_class = ProductPagination
 
     def get_queryset(self):
-        return Product.objects.filter(status='published')\
+        qs = Product.objects.filter(status='published')\
             .select_related('category', 'vendor')\
-            .prefetch_related('gallery_set', 'color_set', 'size_set', 'review_set')\
-            .order_by('-date')
+            .prefetch_related('gallery_set', 'color_set', 'size_set', 'review_set')
+
+        category = self.request.GET.get('category')
+        if category and category != 'all':
+            if str(category).isdigit():
+                qs = qs.filter(category_id=category)
+            else:
+                qs = qs.filter(Q(category__slug=category) | Q(category__title__iexact=category))
+
+        min_price = self.request.GET.get('min_price')
+        if min_price:
+            try:
+                qs = qs.filter(price__gte=Decimal(min_price))
+            except Exception:
+                pass
+
+        max_price = self.request.GET.get('max_price')
+        if max_price:
+            try:
+                qs = qs.filter(price__lte=Decimal(max_price))
+            except Exception:
+                pass
+
+        min_rating = self.request.GET.get('min_rating')
+        if min_rating:
+            try:
+                qs = qs.filter(rating__gte=int(min_rating))
+            except Exception:
+                pass
+
+        in_stock = self.request.GET.get('in_stock')
+        if in_stock in ['true', 'True', '1']:
+            qs = qs.filter(stock_qty__gt=0)
+
+        sort_by = self.request.GET.get('sort_by')
+        if sort_by == 'price-low':
+            qs = qs.order_by('price')
+        elif sort_by == 'price-high':
+            qs = qs.order_by('-price')
+        elif sort_by == 'rating':
+            qs = qs.order_by('-rating', '-date')
+        elif sort_by == 'newest':
+            qs = qs.order_by('-date')
+        else:
+            qs = qs.order_by('-date')
+
+        return qs
 
     def list(self, request, *args, **kwargs):
-        cache_key = "api_products_list_all"
+        cache_key = f"api_products_list_{request.get_full_path()}"
         cached_data = cache.get(cache_key)
         if cached_data is not None and not request.GET.get('nocache'):
             return Response(cached_data)
@@ -592,17 +662,32 @@ class ReviewListAPIView(generics.ListCreateAPIView):
            review= review 
         )
         
+        # Update product.rating and invalidate cache so star rating reflects immediately
+        try:
+            product.rating = int(round(product.product_rating() or rating))
+            product.save(update_fields=['rating'])
+            cache.clear()
+        except Exception:
+            pass
+
         return Response({"message":"Review created successfully"}, status=status.HTTP_200_OK)
 
 class SearchProductAPIView(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
     permission_classes= [AllowAny]
+    pagination_class = ProductPagination
 
     def get_queryset(self):
         query = self.request.GET.get("query", "")
         if query:
-            return Product.objects.filter(status="published", title__icontains=query).select_related('category', 'vendor').order_by('-date')
-        return Product.objects.filter(status="published").select_related('category', 'vendor').order_by('-date')
+            return Product.objects.filter(status="published", title__icontains=query)\
+                .select_related('category', 'vendor')\
+                .prefetch_related('gallery_set', 'color_set', 'size_set', 'review_set')\
+                .order_by('-date')
+        return Product.objects.filter(status="published")\
+            .select_related('category', 'vendor')\
+            .prefetch_related('gallery_set', 'color_set', 'size_set', 'review_set')\
+            .order_by('-date')
 
 
 # --- ADMIN PORTAL VIEWS ---

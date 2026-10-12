@@ -58,9 +58,36 @@ const Products = () => {
   const [sortBy, setSortBy] = useState("default");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  // Pagination states
+  // Pagination states (Synced with Backend DRF Pagination)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(16);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Dynamic partial-fill 5-star renderer
+  const renderDynamicStars = (val) => {
+    const rating = Math.max(0, Math.min(5, Number(val) || 0));
+    return (
+      <div className="flex items-center gap-0.5" title={`${rating.toFixed(1)} out of 5 stars`}>
+        {[1, 2, 3, 4, 5].map((star) => {
+          const fill = Math.max(0, Math.min(1, rating - (star - 1)));
+          return (
+            <span key={star} className="relative inline-block w-3 h-3">
+              <Star className="w-3 h-3 text-slate-200 fill-slate-200" />
+              {fill > 0 && (
+                <span
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ width: `${Math.round(fill * 100)}%` }}
+                >
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryScrollRef = useRef(null);
@@ -97,44 +124,56 @@ const Products = () => {
     ? cartContextVal[1]
     : () => { };
 
-  // Fetch Products (Instant 0ms render from sessionStorage + 11ms background revalidation)
+  // Fetch Products with Backend Pagination and Filter synchronization
   useEffect(() => {
     let isMounted = true;
-    try {
-      const cached = sessionStorage.getItem("cached_amazon_products_v3");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setProducts(parsed);
-          setLoading(false);
-        }
-      }
-    } catch (_e) {
-      // Storage unavailable or invalid
+    setLoading(true);
+
+    const params = {
+      page: currentPage,
+      page_size: itemsPerPage,
+    };
+    if (activeCategory && activeCategory !== "all") {
+      params.category = activeCategory;
     }
+    if (minPrice) params.min_price = minPrice;
+    if (maxPrice) params.max_price = maxPrice;
+    if (inStockOnly) params.in_stock = true;
+    if (sortBy && sortBy !== "default") params.sort_by = sortBy;
 
     apiInstance
-      .get("products/")
+      .get("products/", { params })
       .then((res) => {
         if (isMounted) {
-          const list = Array.isArray(res.data) ? res.data : [];
-          setProducts(list);
-          setLoading(false);
-          try {
-            sessionStorage.setItem("cached_amazon_products_v3", JSON.stringify(list));
-          } catch (_e) {
-            /* ignore storage quota */
+          if (res.data && res.data.results) {
+            setProducts(res.data.results);
+            setTotalCount(res.data.count || 0);
+            setTotalPages(res.data.total_pages || Math.max(1, Math.ceil((res.data.count || 0) / itemsPerPage)));
+          } else if (Array.isArray(res.data)) {
+            setProducts(res.data);
+            setTotalCount(res.data.length);
+            setTotalPages(Math.max(1, Math.ceil(res.data.length / itemsPerPage)));
           }
+          setLoading(false);
         }
       })
       .catch((err) => {
         console.error("Failed to fetch products:", err);
         if (isMounted) setLoading(false);
       });
+
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [
+    currentPage,
+    itemsPerPage,
+    activeCategory,
+    minPrice,
+    maxPrice,
+    inStockOnly,
+    sortBy,
+  ]);
 
   // Fetch Categories (Instant 0ms render from sessionStorage)
   useEffect(() => {
@@ -264,7 +303,7 @@ const Products = () => {
     const size =
       selectedSizes[productId] ||
       (product.size?.length > 0 ? product.size[0].name : "No Size");
-    const quantity = selectedQuantities[productId] || 1;
+    const quantity = 1;
 
     try {
       const formData = new FormData();
@@ -402,8 +441,8 @@ const Products = () => {
       if (minPrice && price < Number(minPrice)) return false;
       if (maxPrice && price > Number(maxPrice)) return false;
 
-      // Rating Filter
-      const rating = Number(p.rating) || 4.5;
+      // Rating Filter (Dynamic)
+      const rating = Number(p.product_rating || p.rating || 0);
       if (minRating > 0 && rating < minRating) return false;
 
       // In Stock Only
@@ -419,21 +458,24 @@ const Products = () => {
     .sort((a, b) => {
       if (sortBy === "price-low") return Number(a.price) - Number(b.price);
       if (sortBy === "price-high") return Number(b.price) - Number(a.price);
-      if (sortBy === "rating") return (Number(b.rating) || 4.8) - (Number(a.rating) || 4.8);
+      if (sortBy === "rating") return (Number(b.product_rating || b.rating || 0)) - (Number(a.product_rating || a.rating || 0));
       if (sortBy === "newest") return new Date(b.date || 0) - new Date(a.date || 0);
       return 0;
     });
 
-  // Pagination Calculations
-  const totalItems = filteredProducts.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  // Pagination Calculations (Supports both backend DRF pagination and client fallback)
+  const isBackendPaginated = totalCount > 0;
+  const displayTotalItems = isBackendPaginated ? totalCount : filteredProducts.length;
+  const displayTotalPages = isBackendPaginated ? totalPages : Math.max(1, Math.ceil(displayTotalItems / itemsPerPage));
+  const validCurrentPage = Math.min(Math.max(1, currentPage), displayTotalPages);
   const startIndex = (validCurrentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+  const paginatedProducts = isBackendPaginated
+    ? filteredProducts
+    : filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  const endIndex = Math.min(startIndex + paginatedProducts.length, displayTotalItems);
 
   const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages && newPage !== validCurrentPage) {
+    if (newPage >= 1 && newPage <= displayTotalPages && newPage !== validCurrentPage) {
       setCurrentPage(newPage);
       setTimeout(() => {
         const el = document.getElementById("products-section");
@@ -447,16 +489,16 @@ const Products = () => {
   };
 
   const getPaginationPages = () => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (displayTotalPages <= 7) {
+      return Array.from({ length: displayTotalPages }, (_, i) => i + 1);
     }
     const pages = [];
     if (validCurrentPage <= 4) {
-      pages.push(1, 2, 3, 4, 5, "...", totalPages);
-    } else if (validCurrentPage >= totalPages - 3) {
-      pages.push(1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      pages.push(1, 2, 3, 4, 5, "...", displayTotalPages);
+    } else if (validCurrentPage >= displayTotalPages - 3) {
+      pages.push(1, "...", displayTotalPages - 4, displayTotalPages - 3, displayTotalPages - 2, displayTotalPages - 1, displayTotalPages);
     } else {
-      pages.push(1, "...", validCurrentPage - 1, validCurrentPage, validCurrentPage + 1, "...", totalPages);
+      pages.push(1, "...", validCurrentPage - 1, validCurrentPage, validCurrentPage + 1, "...", displayTotalPages);
     }
     return pages;
   };
@@ -900,7 +942,7 @@ const Products = () => {
               </button>
 
               <div className="text-xs font-semibold text-slate-600">
-                Showing <strong className="text-slate-900">{totalItems > 0 ? startIndex + 1 : 0}–{endIndex}</strong> of <strong className="text-slate-900">{totalItems}</strong> products
+                Showing <strong className="text-slate-900">{displayTotalItems > 0 ? startIndex + 1 : 0}–{endIndex}</strong> of <strong className="text-slate-900">{displayTotalItems}</strong> products
               </div>
 
               {/* Active Category Filter Tag */}
@@ -1067,15 +1109,25 @@ const Products = () => {
                         </h5>
                       </Link>
 
-                      {/* Ratings & Review Count */}
+                      {/* Dynamic 5-Star Ratings & Review Count */}
                       <div className="flex items-center gap-2 mb-2.5">
-                        <div className="flex items-center gap-1 bg-amber-50 border border-amber-100/80 px-2 py-0.5 rounded-lg text-amber-700 font-bold text-xs">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span>{Number(p.rating || 4.8).toFixed(1)}</span>
+                        <div
+                          className="flex items-center gap-1.5 bg-amber-50/90 border border-amber-200/80 px-2 py-0.5 rounded-lg text-amber-800 font-bold text-xs shadow-2xs"
+                          title={`${Number(p.product_rating || p.rating || 0).toFixed(1)} / 5.0 (${p.rating_count !== undefined ? p.rating_count : 0} reviews)`}
+                        >
+                          {renderDynamicStars(p.product_rating || p.rating || 0)}
+                          <span className="text-[11px] font-black text-amber-900 leading-none">
+                            {Number(p.product_rating || p.rating || 0) > 0
+                              ? Number(p.product_rating || p.rating).toFixed(1)
+                              : "0.0"}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          ({p.reviews_count || "240+"} reviews)
-                        </span>
+                        <Link
+                          to={`/detail/${p?.slug}/`}
+                          className="text-[11px] text-slate-400 hover:text-indigo-600 font-medium transition-colors"
+                        >
+                          ({p.rating_count !== undefined ? `${p.rating_count} reviews` : "0 reviews"})
+                        </Link>
                       </div>
 
                       {/* Price & Stock Status */}
@@ -1109,66 +1161,38 @@ const Products = () => {
                       </div>
                     </div>
 
-                    {/* Card Actions: Stepper & Luxury Add to Cart Button */}
+                    {/* Card Actions: Lucrative Full-Width Add to Cart Button (Stepper removed) */}
                     <div className="pt-3 border-t border-slate-100/80 mt-auto">
-                      <div className="flex items-center gap-1.5 w-full">
-                        {/* Stepper */}
-                        {inStock && (
-                          <div
-                            className="flex items-center bg-slate-100/90 border border-slate-200/80 rounded-full p-0.5 shrink-0 shadow-xs"
-                            style={{ borderRadius: "9999px" }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleQuantityAdjust(p.id, -1)}
-                              className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs active:scale-90 transition-all cursor-pointer"
-                              aria-label="Decrease quantity"
-                              style={{ borderRadius: "9999px" }}
-                            >
-                              <Minus className="w-2.5 h-2.5" />
-                            </button>
-                            <span className="w-5 text-center text-xs font-black text-slate-900 select-none">
-                              {currentQty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleQuantityAdjust(p.id, 1)}
-                              className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs active:scale-90 transition-all cursor-pointer"
-                              aria-label="Increase quantity"
-                              style={{ borderRadius: "9999px" }}
-                            >
-                              <Plus className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Luxury Add to Cart Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleAddToCart(p)}
-                          disabled={isAdding || !inStock}
-                          title={!inStock ? "Out of Stock" : "Add to Cart"}
-                          aria-label="Add to Cart"
-                          style={{ borderRadius: "9999px" }}
-                          className={`flex-1 h-9 rounded-full font-bold flex items-center justify-center gap-1.5 transition-all duration-300 active:scale-95 cursor-pointer ${!inStock
-                            ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(p)}
+                        disabled={isAdding || !inStock}
+                        title={!inStock ? "Out of Stock" : "Add to Cart"}
+                        aria-label="Add to Cart"
+                        className={`w-full h-10 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-md active:scale-[0.97] cursor-pointer ${
+                          !inStock
+                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
                             : isAdding
-                              ? "bg-indigo-600 text-white cursor-wait shadow-lg shadow-indigo-600/30"
-                              : "bg-slate-900 hover:bg-indigo-600 text-white shadow-md hover:shadow-xl hover:shadow-indigo-600/30 group/cartbtn hover:-translate-y-0.5"
-                            }`}
-                        >
-                          {isAdding ? (
-                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : !inStock ? (
-                            <span className="text-[10px] font-bold text-slate-400">Sold Out</span>
-                          ) : (
-                            <>
-                              <ShoppingCart className="w-3.5 h-3.5 transition-transform group-hover/cartbtn:scale-110" />
-                              <span className="text-[11px] font-bold hidden sm:inline">Add</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
+                            ? "bg-indigo-600 text-white cursor-wait shadow-lg shadow-indigo-600/30"
+                            : "bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-900 hover:from-indigo-600 hover:via-indigo-600 hover:to-indigo-700 text-white shadow-indigo-950/20 hover:shadow-xl hover:shadow-indigo-600/35 border border-white/10 group/cartbtn hover:-translate-y-0.5"
+                        }`}
+                      >
+                        {isAdding ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span className="text-xs font-bold tracking-wide">Adding...</span>
+                          </>
+                        ) : !inStock ? (
+                          <span className="text-xs font-semibold text-slate-400">Out of Stock</span>
+                        ) : (
+                          <>
+                            <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center group-hover/cartbtn:bg-white/20 transition-colors">
+                              <ShoppingCart className="w-3.5 h-3.5 transition-transform duration-300 group-hover/cartbtn:scale-110 group-hover/cartbtn:-rotate-6" />
+                            </div>
+                            <span className="font-bold tracking-wide">Add to Cart</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 );
@@ -1177,11 +1201,11 @@ const Products = () => {
           )}
 
           {/* MODERN PAGINATION COMPONENT - FULLY ROUNDED */}
-          {totalPages > 1 && (
+          {displayTotalPages > 1 && (
             <div className="mt-8 pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs">
               <div className="text-xs font-semibold text-slate-500 order-2 sm:order-1">
-                Showing <span className="font-bold text-slate-900">{totalItems > 0 ? startIndex + 1 : 0}–{endIndex}</span> of{" "}
-                <span className="font-bold text-slate-900">{totalItems}</span> products
+                Showing <span className="font-bold text-slate-900">{displayTotalItems > 0 ? startIndex + 1 : 0}–{endIndex}</span> of{" "}
+                <span className="font-bold text-slate-900">{displayTotalItems}</span> products
               </div>
 
               <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
@@ -1233,9 +1257,9 @@ const Products = () => {
                 <button
                   type="button"
                   onClick={() => handlePageChange(validCurrentPage + 1)}
-                  disabled={validCurrentPage === totalPages}
+                  disabled={validCurrentPage === displayTotalPages}
                   style={{ borderRadius: "9999px" }}
-                  className={`flex items-center gap-1 px-3.5 py-2 rounded-full text-xs font-bold border transition-all cursor-pointer ${validCurrentPage === totalPages
+                  className={`flex items-center gap-1 px-3.5 py-2 rounded-full text-xs font-bold border transition-all cursor-pointer ${validCurrentPage === displayTotalPages
                     ? "border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50"
                     : "border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs hover:border-slate-400"
                     }`}

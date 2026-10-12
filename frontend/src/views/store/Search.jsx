@@ -14,8 +14,6 @@ import {
   Heart,
   Star,
   Check,
-  Plus,
-  Minus,
   ArrowRight,
 } from "lucide-react";
 import { showToast } from "../../utils/toast";
@@ -26,9 +24,33 @@ const Search = () => {
 
   const [selectedColors, setSelectedColors] = useState({});
   const [selectedSizes, setSelectedSizes] = useState({});
-  const [selectedQuantities, setSelectedQuantities] = useState({});
   const [wishlist, setWishlist] = useState({});
   const [addingToCart, setAddingToCart] = useState({});
+
+  // Dynamic partial-fill 5-star renderer
+  const renderDynamicStars = (val) => {
+    const rating = Math.max(0, Math.min(5, Number(val) || 0));
+    return (
+      <div className="flex items-center gap-0.5" title={`${rating.toFixed(1)} out of 5 stars`}>
+        {[1, 2, 3, 4, 5].map((star) => {
+          const fill = Math.max(0, Math.min(1, rating - (star - 1)));
+          return (
+            <span key={star} className="relative inline-block w-3 h-3">
+              <Star className="w-3 h-3 text-slate-200 fill-slate-200" />
+              {fill > 0 && (
+                <span
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ width: `${Math.round(fill * 100)}%` }}
+                >
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   const currentAddress = GetCurrentAddress();
   const userData = UserData();
@@ -50,7 +72,13 @@ const Search = () => {
       .get(`search/?query=${encodeURIComponent(query)}`)
       .then((res) => {
         if (isMounted) {
-          setProducts(Array.isArray(res.data) ? res.data : []);
+          const list =
+            res.data && res.data.results
+              ? res.data.results
+              : Array.isArray(res.data)
+              ? res.data
+              : [];
+          setProducts(list);
           setLoading(false);
         }
       })
@@ -78,15 +106,6 @@ const Search = () => {
     }));
   };
 
-  const handleQuantityAdjust = (productId, delta) => {
-    const current = selectedQuantities[productId] || 1;
-    const nextVal = Math.max(1, current + delta);
-    setSelectedQuantities((prev) => ({
-      ...prev,
-      [productId]: nextVal,
-    }));
-  };
-
   const toggleWishlist = (productId) => {
     setWishlist((prev) => {
       const next = !prev[productId];
@@ -109,7 +128,7 @@ const Search = () => {
     const size =
       selectedSizes[productId] ||
       (product.size?.length > 0 ? product.size[0].name : "No Size");
-    const quantity = selectedQuantities[productId] || 1;
+    const quantity = 1;
 
     try {
       const formData = new FormData();
@@ -243,10 +262,18 @@ const Search = () => {
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
                       {p.category?.title || "Exclusive"}
                     </span>
-                    <div className="flex items-center text-amber-500 text-xs gap-1">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span className="font-semibold text-slate-700">
-                        {p.rating || "4.8"}
+                    <div
+                      className="flex items-center gap-1.5"
+                      title={`${Number(p.product_rating || p.rating || 0).toFixed(1)} / 5.0 (${p.rating_count !== undefined ? p.rating_count : 0} reviews)`}
+                    >
+                      {renderDynamicStars(p.product_rating || p.rating || 0)}
+                      <span className="text-xs font-bold text-slate-700">
+                        {Number(p.product_rating || p.rating || 0) > 0
+                          ? Number(p.product_rating || p.rating).toFixed(1)
+                          : "0.0"}
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        ({p.rating_count !== undefined ? p.rating_count : 0})
                       </span>
                     </div>
                   </div>
@@ -330,46 +357,29 @@ const Search = () => {
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5 w-full">
-                      <div
-                        className="flex items-center border border-slate-200 rounded-full bg-slate-50 p-0.5 shrink-0"
-                        style={{ borderRadius: "9999px" }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleQuantityAdjust(p.id, -1)}
-                          className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs cursor-pointer"
-                          aria-label="Decrease quantity"
-                          style={{ borderRadius: "9999px" }}
-                        >
-                          <Minus className="w-2.5 h-2.5" />
-                        </button>
-                        <span className="w-5 text-center text-xs font-black text-slate-800 select-none">
-                          {currentQty}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleQuantityAdjust(p.id, 1)}
-                          className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-slate-700 hover:text-slate-900 shadow-xs cursor-pointer"
-                          aria-label="Increase quantity"
-                          style={{ borderRadius: "9999px" }}
-                        >
-                          <Plus className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAddToCart(p)}
-                        disabled={isAdding}
-                        style={{ borderRadius: "9999px" }}
-                        className="flex-1 h-9 bg-slate-900 hover:bg-indigo-600 disabled:bg-indigo-400 text-white text-xs font-bold rounded-full flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
-                      >
-                        <ShoppingCart className="w-3.5 h-3.5" />
-                        <span>{isAdding ? "Adding..." : "Add to Cart"}</span>
-                      </button>
-                    </div>
+                <div className="pt-2 border-t border-slate-100 mt-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCart(p)}
+                    disabled={isAdding}
+                    title="Add to Cart"
+                    aria-label="Add to Cart"
+                    className="w-full h-10 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-md active:scale-[0.98] cursor-pointer bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-900 hover:from-indigo-600 hover:via-indigo-600 hover:to-indigo-700 text-white shadow-indigo-950/20 hover:shadow-xl hover:shadow-indigo-600/35 border border-white/10 group/cartbtn hover:-translate-y-0.5"
+                  >
+                    {isAdding ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span className="text-xs font-bold tracking-wide">Adding...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center group-hover/cartbtn:bg-white/20 transition-colors">
+                          <ShoppingCart className="w-3.5 h-3.5 transition-transform duration-300 group-hover/cartbtn:scale-110 group-hover/cartbtn:-rotate-6" />
+                        </div>
+                        <span className="font-bold tracking-wide">Add to Cart</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             );
