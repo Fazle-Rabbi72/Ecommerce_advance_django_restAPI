@@ -42,6 +42,8 @@ import {
   Ticket,
   Copy,
   Check,
+  Sparkles,
+  Calendar,
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -115,6 +117,23 @@ const AdminDashboard = () => {
   const [submittingCoupon, setSubmittingCoupon] = useState(false);
   const [togglingCouponId, setTogglingCouponId] = useState(null);
   const [copiedCouponId, setCopiedCouponId] = useState(null);
+
+  // Admin Upcoming Products State
+  const [upcomingList, setUpcomingList] = useState([]);
+  const [loadingUpcoming, setLoadingUpcoming] = useState(false);
+  const [showUpcomingModal, setShowUpcomingModal] = useState(false);
+  const [submittingUpcoming, setSubmittingUpcoming] = useState(false);
+  const [upcomingForm, setUpcomingForm] = useState({
+    title: "",
+    sub_title: "",
+    release_date: "",
+    expected_price: "",
+    badge_text: "Coming Soon",
+    category_id: "",
+    vendor_id: "0",
+    description: "",
+    image: null,
+  });
 
   // Vendor & Category Form States
   const initialVendorForm = {
@@ -260,6 +279,87 @@ const AdminDashboard = () => {
       console.warn("Could not load admin coupons:", err);
     } finally {
       setLoadingCoupons(false);
+    }
+  };
+
+  // Fetch Upcoming Products (Admin)
+  const fetchUpcomingProducts = async () => {
+    setLoadingUpcoming(true);
+    try {
+      const res = await apiInstance.get("vendor/upcoming-products/all/");
+      if (Array.isArray(res.data)) {
+        setUpcomingList(res.data);
+      }
+    } catch (err) {
+      console.warn("Could not load upcoming products:", err);
+    } finally {
+      setLoadingUpcoming(false);
+    }
+  };
+
+  const handleCreateUpcomingAdmin = async (e) => {
+    e.preventDefault();
+    if (!upcomingForm.title.trim()) {
+      showToast.warning("Title is required for the upcoming product.");
+      return;
+    }
+    setSubmittingUpcoming(true);
+    try {
+      const fd = new FormData();
+      fd.append("title", upcomingForm.title.trim());
+      fd.append("sub_title", upcomingForm.sub_title.trim());
+      fd.append("release_date", upcomingForm.release_date || "");
+      fd.append("expected_price", upcomingForm.expected_price || "");
+      fd.append("badge_text", upcomingForm.badge_text || "Coming Soon");
+      fd.append("category_id", upcomingForm.category_id || "");
+      fd.append("vendor_id", upcomingForm.vendor_id || "0");
+      fd.append("description", upcomingForm.description || "");
+      if (upcomingForm.image) {
+        fd.append("image", upcomingForm.image);
+      }
+
+      await apiInstance.post("upcoming-products/create/", fd);
+      showToast.success("Upcoming product banner created successfully!");
+      setShowUpcomingModal(false);
+      setUpcomingForm({
+        title: "",
+        sub_title: "",
+        release_date: "",
+        expected_price: "",
+        badge_text: "Coming Soon",
+        category_id: "",
+        vendor_id: "0",
+        description: "",
+        image: null,
+      });
+      fetchUpcomingProducts();
+    } catch (err) {
+      showToast.error(
+        err.response?.data?.message || "Failed to create upcoming product."
+      );
+    } finally {
+      setSubmittingUpcoming(false);
+    }
+  };
+
+  const handleToggleUpcomingAdmin = async (item) => {
+    try {
+      const res = await apiInstance.patch(`upcoming-products/${item.id}/`);
+      showToast.success(res.data?.message || "Status updated");
+      fetchUpcomingProducts();
+    } catch (_err) {
+      showToast.error("Failed to toggle status");
+    }
+  };
+
+  const handleDeleteUpcomingAdmin = async (item) => {
+    if (!window.confirm(`Are you sure you want to delete '${item.title}'?`)) return;
+    try {
+      await apiInstance.delete(`upcoming-products/${item.id}/`);
+      showToast.success("Deleted successfully");
+      fetchUpcomingProducts();
+    } catch (_err) {
+      showToast.error("Failed to delete upcoming product");
     }
   };
 
@@ -483,6 +583,11 @@ const AdminDashboard = () => {
     if (activeTab === "coupons") {
       fetchCoupons();
       fetchVendors();
+    }
+    if (activeTab === "upcoming") {
+      fetchUpcomingProducts();
+      fetchVendors();
+      fetchCategories();
     }
   }, [activeTab, isSuperUser]);
 
@@ -1006,6 +1111,7 @@ const AdminDashboard = () => {
               if (activeTab === "products") fetchProducts();
               if (activeTab === "orders") fetchOrders();
               if (activeTab === "coupons") fetchCoupons();
+              if (activeTab === "upcoming") fetchUpcomingProducts();
               showToast.info("Data refreshed");
             }}
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition-all hover:border-slate-600 shadow-sm"
@@ -1047,6 +1153,12 @@ const AdminDashboard = () => {
             label: "Coupons & Discounts",
             icon: Tag,
             badge: coupons.filter((c) => c.active).length,
+          },
+          {
+            id: "upcoming",
+            label: "Upcoming Banners",
+            icon: Sparkles,
+            badge: upcomingList.filter((u) => u.status).length,
           },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -2451,6 +2563,201 @@ const AdminDashboard = () => {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* UPCOMING PRODUCT ANNOUNCEMENTS TAB */}
+      {activeTab === "upcoming" && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Header Card */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-slate-800/80 rounded-3xl border border-slate-700/80">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <Sparkles className="w-5 h-5" />
+                </span>
+                <h2 className="text-lg sm:text-xl font-extrabold text-white">
+                  Upcoming Product Announcements
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Curate and publish upcoming product banners that appear directly across the storefront header.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowUpcomingModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              New Upcoming Banner
+            </button>
+          </div>
+
+          {/* Metrics summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-slate-800/60 border border-slate-750">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total Banners</span>
+              <p className="text-2xl font-black text-white mt-1">{upcomingList.length}</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-slate-800/60 border border-slate-750">
+              <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider block">Active On Header</span>
+              <p className="text-2xl font-black text-emerald-300 mt-1">
+                {upcomingList.filter((u) => u.status).length}
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-slate-800/60 border border-slate-750">
+              <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider block">Vendor Submissions</span>
+              <p className="text-2xl font-black text-indigo-300 mt-1">
+                {upcomingList.filter((u) => u.vendor).length}
+              </p>
+            </div>
+            <div className="p-5 rounded-2xl bg-slate-800/60 border border-slate-750">
+              <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider block">Platform Exclusives</span>
+              <p className="text-2xl font-black text-amber-300 mt-1">
+                {upcomingList.filter((u) => !u.vendor).length}
+              </p>
+            </div>
+          </div>
+
+          {/* Upcoming Table */}
+          <div className="bg-slate-850 rounded-3xl border border-slate-700/80 overflow-hidden shadow-xl">
+            {loadingUpcoming ? (
+              <div className="py-20 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+                <p className="text-sm font-semibold">Loading upcoming announcements...</p>
+              </div>
+            ) : upcomingList.length === 0 ? (
+              <div className="py-20 text-center px-4 space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-slate-800 text-slate-500 mx-auto flex items-center justify-center border border-slate-700">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-base font-bold text-white">No Upcoming Announcements Yet</h4>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    Create your first upcoming product announcement banner to build anticipation and buzz with shoppers.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowUpcomingModal(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create First Announcement
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-800 text-slate-400 border-b border-slate-700 text-[11px] uppercase tracking-wider">
+                      <th className="py-4 px-6 font-bold">Upcoming Product</th>
+                      <th className="py-4 px-6 font-bold">Category</th>
+                      <th className="py-4 px-6 font-bold">Source / Vendor</th>
+                      <th className="py-4 px-6 font-bold">Launch Date</th>
+                      <th className="py-4 px-6 font-bold">Target Price</th>
+                      <th className="py-4 px-6 font-bold">Status</th>
+                      <th className="py-4 px-6 font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-300">
+                    {upcomingList.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            {item.image ? (
+                              <img
+                                src={item.image}
+                                alt={item.title}
+                                className="w-12 h-12 rounded-xl object-cover bg-slate-800 border border-slate-750 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-750 flex items-center justify-center text-slate-500 shrink-0">
+                                <Sparkles className="w-5 h-5 text-indigo-400" />
+                              </div>
+                            )}
+                            <div className="min-w-0 max-w-xs">
+                              <span className="inline-block px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase tracking-wider mb-1">
+                                {item.badge_text || "Coming Soon"}
+                              </span>
+                              <p className="font-extrabold text-white text-xs truncate">
+                                {item.title}
+                              </p>
+                              {item.sub_title && (
+                                <p className="text-[11px] text-slate-400 truncate">
+                                  {item.sub_title}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-xs text-slate-300 font-medium">
+                            {item.category?.title || item.category_name || "General"}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          {item.vendor ? (
+                            <div className="flex items-center gap-2">
+                              {item.vendor.image && (
+                                <img
+                                  src={item.vendor.image}
+                                  alt={item.vendor.name}
+                                  className="w-5 h-5 rounded-md object-cover border border-slate-700"
+                                />
+                              )}
+                              <span className="font-semibold text-white text-xs">
+                                {item.vendor.name}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-950/80 border border-indigo-700/40 text-indigo-300 text-[11px] font-bold">
+                              Platform Official
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="font-semibold text-slate-200">
+                            {item.release_date || "TBA"}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="font-bold text-white">
+                            {item.expected_price ? `$${item.expected_price}` : "TBA"}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <button
+                            onClick={() => handleToggleUpcomingAdmin(item)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
+                              item.status
+                                ? "bg-emerald-950 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900"
+                                : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-750"
+                            }`}
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                item.status ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
+                              }`}
+                            />
+                            {item.status ? "Live" : "Hidden"}
+                          </button>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <button
+                            onClick={() => handleDeleteUpcomingAdmin(item)}
+                            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
+                            title="Delete Announcement"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -3925,6 +4232,7 @@ const AdminDashboard = () => {
                     { id: "products", label: "Product Catalog", icon: Package },
                     { id: "orders", label: "Orders & Shipping", icon: Truck },
                     { id: "coupons", label: "Coupons & Discounts", icon: Tag },
+                    { id: "upcoming", label: "Upcoming Banners", icon: Sparkles },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -4310,6 +4618,212 @@ const AdminDashboard = () => {
                 Yes, Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CREATE UPCOMING PRODUCT ANNOUNCEMENT */}
+      {showUpcomingModal && (
+        <div
+          role="dialog"
+          aria-label="Create Upcoming Product Banner"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+        >
+          <div className="bg-slate-900 border border-slate-750 rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6 text-white">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-indigo-400" />
+                  Create Upcoming Product Banner
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Announce a brand new product or prototype on the storefront header.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUpcomingModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-xl hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUpcomingAdmin} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Product Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Sony WH-1000XM6 Wireless Noise-Cancelling Headphones"
+                  value={upcomingForm.title}
+                  onChange={(e) =>
+                    setUpcomingForm({ ...upcomingForm, title: e.target.value })
+                  }
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Sub-title / Catchphrase
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Next-Gen Noise Cancellation & 40H Battery Life"
+                  value={upcomingForm.sub_title}
+                  onChange={(e) =>
+                    setUpcomingForm({ ...upcomingForm, sub_title: e.target.value })
+                  }
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">
+                    Expected Release Date
+                  </label>
+                  <input
+                    type="date"
+                    value={upcomingForm.release_date}
+                    onChange={(e) =>
+                      setUpcomingForm({ ...upcomingForm, release_date: e.target.value })
+                    }
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">
+                    Target / Expected Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="399.99"
+                    value={upcomingForm.expected_price}
+                    onChange={(e) =>
+                      setUpcomingForm({ ...upcomingForm, expected_price: e.target.value })
+                    }
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">
+                    Badge Text
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Coming Soon / Sneak Peek"
+                    value={upcomingForm.badge_text}
+                    onChange={(e) =>
+                      setUpcomingForm({ ...upcomingForm, badge_text: e.target.value })
+                    }
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={upcomingForm.category_id}
+                    onChange={(e) =>
+                      setUpcomingForm({ ...upcomingForm, category_id: e.target.value })
+                    }
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  >
+                    <option value="">General</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Vendor / Store Association
+                </label>
+                <select
+                  value={upcomingForm.vendor_id}
+                  onChange={(e) =>
+                    setUpcomingForm({ ...upcomingForm, vendor_id: e.target.value })
+                  }
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                >
+                  <option value="0">Platform Official (Marketplace Release)</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} (Vendor #{v.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Banner / Product Image
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setUpcomingForm({ ...upcomingForm, image: e.target.files[0] });
+                    }
+                  }}
+                  className="w-full text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Brief Overview / Specs Teaser
+                </label>
+                <textarea
+                  rows="3"
+                  placeholder="Tell shoppers why they should be excited for this upcoming launch..."
+                  value={upcomingForm.description}
+                  onChange={(e) =>
+                    setUpcomingForm({ ...upcomingForm, description: e.target.value })
+                  }
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowUpcomingModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingUpcoming}
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {submittingUpcoming ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" /> Publish Announcement
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,10 +1,10 @@
 from django.shortcuts import render,redirect
 from django.conf import settings
 
-from store.models import Category,Product,Tax,Review,Cart,CartOrder,CartOrderItem,Coupon,Notification,Gallery,Color,Size,Specification
+from store.models import Category,Product,Tax,Review,Cart,CartOrder,CartOrderItem,Coupon,Notification,Gallery,Color,Size,Specification,UpcomingProduct
 from vendor.models import Vendor
 from userauths.models import User
-from store.serializers import ProductSerializer,CategorySerializer,CartSerializer,CartOrderSerializer,CouponSerializer,NotificationSerializer,ReviewSerializer,VendorSerializer
+from store.serializers import ProductSerializer,CategorySerializer,CartSerializer,CartOrderSerializer,CouponSerializer,NotificationSerializer,ReviewSerializer,VendorSerializer,UpcomingProductSerializer
 
 from rest_framework import generics, status
 from rest_framework.views import APIView
@@ -1352,4 +1352,100 @@ class AdminCouponToggleStatusView(APIView):
             'active': coupon.active,
             'coupon': CouponSerializer(coupon).data
         }, status=status.HTTP_200_OK)
+
+
+class UpcomingProductListAPIView(generics.ListAPIView):
+    serializer_class = UpcomingProductSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return UpcomingProduct.objects.filter(status=True).select_related('vendor', 'category').order_by('-date')
+
+
+class UpcomingProductCreateAPIView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request):
+        data = request.data
+        title = data.get('title')
+        if not title:
+            return Response({'message': 'Title is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        vendor_id = data.get('vendor_id')
+        vendor = None
+        if vendor_id and str(vendor_id) != '0' and str(vendor_id).lower() != 'null':
+            vendor = Vendor.objects.filter(id=vendor_id).first()
+
+        category_id = data.get('category_id')
+        category = None
+        if category_id and str(category_id) != '0' and str(category_id).lower() != 'null':
+            category = Category.objects.filter(id=category_id).first()
+
+        expected_price = data.get('expected_price')
+        if expected_price in ['', None, 'null']:
+            expected_price = None
+
+        release_date = data.get('release_date')
+        if release_date in ['', None, 'null']:
+            release_date = None
+
+        upcoming = UpcomingProduct(
+            vendor=vendor,
+            title=title,
+            sub_title=data.get('sub_title', '') or '',
+            expected_price=expected_price,
+            release_date=release_date,
+            badge_text=data.get('badge_text', 'Coming Soon') or 'Coming Soon',
+            category=category,
+            description=data.get('description', '') or '',
+            status=True
+        )
+
+        image = request.FILES.get('image')
+        if image:
+            upcoming.image = image
+
+        upcoming.save()
+        return Response({
+            'message': 'Upcoming product banner created successfully',
+            'product': UpcomingProductSerializer(upcoming).data
+        }, status=status.HTTP_201_CREATED)
+
+
+class VendorUpcomingProductListAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, vendor_id=None):
+        if vendor_id and str(vendor_id) != '0' and str(vendor_id).lower() not in ['all', 'null']:
+            items = UpcomingProduct.objects.filter(vendor_id=vendor_id).select_related('vendor', 'category').order_by('-date')
+        else:
+            items = UpcomingProduct.objects.all().select_related('vendor', 'category').order_by('-date')
+        serializer = UpcomingProductSerializer(items, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UpcomingProductActionAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def patch(self, request, pk):
+        item = UpcomingProduct.objects.filter(id=pk).first()
+        if not item:
+            return Response({'message': 'Upcoming product not found'}, status=status.HTTP_404_NOT_FOUND)
+        item.status = not item.status
+        item.save()
+        return Response({
+            'message': f"Status updated to {'Active' if item.status else 'Inactive'}",
+            'status': item.status,
+            'product': UpcomingProductSerializer(item).data
+        }, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        item = UpcomingProduct.objects.filter(id=pk).first()
+        if not item:
+            return Response({'message': 'Upcoming product not found'}, status=status.HTTP_404_NOT_FOUND)
+        title = item.title
+        item.delete()
+        return Response({'message': f"'{title}' deleted successfully"}, status=status.HTTP_200_OK)
+
 

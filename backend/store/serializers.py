@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from store.models import Category,Product,Color,Size,Gallery,Specification,ProductFaq,Review,Wishlist,Cart,CartOrder,CartOrderItem,Coupon,Notification
+from store.models import Category,Product,Color,Size,Gallery,Specification,ProductFaq,Review,Wishlist,Cart,CartOrder,CartOrderItem,Coupon,Notification,UpcomingProduct
 from vendor.models import Vendor
 from userauths.serializer import ProfileSerializer
 def _clean_image_url(url):
@@ -229,3 +229,27 @@ class NotificationSummarySerializer(serializers.Serializer):
     un_read_noti=serializers.IntegerField()
     read_noti=serializers.IntegerField()
     all_noti=serializers.IntegerField()
+
+class UpcomingProductSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    vendor_slug = serializers.CharField(source='vendor.slug', read_only=True)
+    vendor_image = serializers.SerializerMethodField(read_only=True)
+    category_title = serializers.CharField(source='category.title', read_only=True)
+
+    class Meta:
+        model = UpcomingProduct
+        fields = '__all__'
+
+    def get_vendor_image(self, obj):
+        if obj.vendor and obj.vendor.image:
+            try:
+                return _clean_image_url(obj.vendor.image.url)
+            except Exception:
+                return None
+        return None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if 'image' in data:
+            data['image'] = _clean_image_url(data['image'])
+        return data

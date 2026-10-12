@@ -30,6 +30,10 @@ urlpatterns =[
     path('coupon/',store_views.CouponAPIView.as_view()),
     path('reviews/<int:product_id>/' ,store_views.ReviewListAPIView.as_view()),
     path('search/' ,store_views.SearchProductAPIView.as_view()),
+    path('upcoming-products/', store_views.UpcomingProductListAPIView.as_view()),
+    path('upcoming-products/create/', store_views.UpcomingProductCreateAPIView.as_view()),
+    path('upcoming-products/<int:pk>/', store_views.UpcomingProductActionAPIView.as_view()),
+    path('vendor/upcoming-products/<str:vendor_id>/', store_views.VendorUpcomingProductListAPIView.as_view()),
     
     #Payment Endpoints
     path('stripe-checkout/<str:order_oid>/',store_views.StripeCheckoutView.as_view()),

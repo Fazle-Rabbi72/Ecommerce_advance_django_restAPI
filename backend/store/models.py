@@ -326,3 +326,23 @@ class Tax(models.Model):
     class Meta:
         verbose_name_plural="Taxes"
         ordering=['country']
+
+class UpcomingProduct(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, null=True, blank=True, related_name="upcoming_products")
+    title = models.CharField(max_length=500)
+    sub_title = models.CharField(max_length=500, null=True, blank=True)
+    image = models.FileField(upload_to="upcoming", null=True, blank=True, default="product.jpg", max_length=1000)
+    expected_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    release_date = models.DateField(null=True, blank=True)
+    badge_text = models.CharField(max_length=100, default="Coming Soon")
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    status = models.BooleanField(default=True, db_index=True)
+    date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name_plural = "Upcoming Products"
+        ordering = ['-date']

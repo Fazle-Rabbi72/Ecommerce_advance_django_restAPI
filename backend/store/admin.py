@@ -1,5 +1,5 @@
 from django.contrib import admin
-from store.models import Product,Category,Size,Color,Gallery,Specification,Cart, CartOrder, CartOrderItem, Review, Wishlist, Coupon, Notification,Tax
+from store.models import Product,Category,Size,Color,Gallery,Specification,Cart, CartOrder, CartOrderItem, Review, Wishlist, Coupon, Notification,Tax, UpcomingProduct
 
 class GalleryInline(admin.TabularInline):
     model=Gallery
@@ -41,3 +41,13 @@ admin.site.register(Tax)
 admin.site.register(Coupon)
 admin.site.register(Notification)
 admin.site.register(Wishlist)
+
+class UpcomingProductAdmin(admin.ModelAdmin):
+    list_display = ['title', 'vendor', 'badge_text', 'release_date', 'expected_price', 'status', 'date']
+    list_editable = ['status', 'badge_text']
+    list_filter = ['status', 'badge_text', 'release_date', 'date']
+    search_fields = ['title', 'sub_title', 'vendor__name']
+
+admin.site.register(UpcomingProduct, UpcomingProductAdmin)
+
+
